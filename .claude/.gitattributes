@@ -1,0 +1,2 @@
+*.sh text eol=lf
+hooks/padroes-segredos.txt text eol=lf
