@@ -108,6 +108,34 @@ Só o que é verdade agora. O que mudou e quando fica no cartão.
 
 Status é `ok (testado AAAA-MM-DD)` ou `pendente: <o que o usuário precisa fazer>`. O hook de abertura avisa os pendentes.
 
+Seções opcionais, gravadas pelo `/operador-iniciar`:
+
+```markdown
+## Motores
+
+Salvo em: AAAA-MM-DD
+Subagentes: perguntar a cada vez | secundária no ciclo | principal
+Modelos: padrão | setup
+
+| Tipo | Modelo | Esforço |
+|---|---|---|
+| Pesquisa | sonnet | low |
+| Análise | opus | high |
+| Execução | sonnet | medium |
+| Criação | sonnet | medium |
+| Conferência | haiku | low |
+
+## MCP por conta
+
+| MCP | Prefixo na principal | Prefixo na secundária | Leitura na secundária |
+|---|---|---|---|
+| Trello | mcp__trello__ | mcp__claude_ai_Trello__ | mcp__claude_ai_Trello__trelloRead* |
+| Notion | (conector do app) | mcp__claude_ai_Notion__ | <lista das ferramentas que só leem> |
+```
+
+- "Motores": a tabela de modelos só existe com `Modelos: setup`; com `padrão`, vale a tabela do `/operador-iniciar`.
+- "MCP por conta": o nome de uma ferramenta muda de uma conta para outra (conector do claude.ai vira `mcp__claude_ai_<Nome>__`). "Leitura na secundária" é o que o gerente pode liberar lá: só ferramentas que leem, confirmadas pelo usuário.
+
 ## operacao/docs/fluxos/NN-nome.md
 
 Criado pelo `/operador-fluxo`.
@@ -122,7 +150,7 @@ Atualizado: AAAA-MM-DD
 **Saída:** <o que fica em entregas/ no fim>
 
 ## Passos
-1. **<papel>** — <o que faz, em 1 a 3 frases, como instrução ao subagente> — ferramentas: <...> — entrega: <arquivo em entregas/ ou resposta>
+1. **<papel>** — tipo: <pesquisa | análise | execução | criação | conferência> — <o que faz, em 1 a 3 frases, como instrução ao subagente> — ferramentas: <...; MCP com "leitura" ou "escrita"> — entrega: <arquivo em entregas/ ou resposta>
 2. ⏸ <o que o usuário decide aqui>
 3. **<papel>** — ... — se reprovar: volta ao passo N, no máximo M vezes; depois disso, pausa para o usuário
 
@@ -180,6 +208,7 @@ Criado pelo gerente quando o cartão vai para "Fazendo". Só o gerente edita.
 
 Status: briefing | análise | plano | aprovado | execução | conferência | concluído | cancelado
 Aberto: AAAA-MM-DD · Fechado: AAAA-MM-DD · Fluxo: <NN-nome ou "padrão">
+Motores: <conta dos subagentes; modelos padrão ou setup; MCPs que a secundária tem>
 
 ## Briefing
 - O que: ...

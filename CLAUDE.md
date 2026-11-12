@@ -57,6 +57,7 @@ Root/                       abra o Claude Code sempre aqui
 - Leitura pesada vai para subagente, que devolve só a conclusão.
 
 **Subagentes** (`.claude/agents/`): `operador-sub-analista` (só leitura: investiga e propõe), `operador-sub-executor` (executa o plano aprovado), `operador-sub-conferente` (só leitura: confere o resultado). Papéis de fluxo são subagentes `general-purpose` com o texto do papel escrito no arquivo do fluxo. Nomes: skill do kit é `operador-<comando>`; subagente novo em `.claude/agents/` é `operador-sub-<papel>`.
+- Todo disparo de subagente, em qualquer skill, segue "Motores: conta e modelos" de `.claude/skills/operador-iniciar/SKILL.md`: conta (principal ou a secundária do Claude Code na CLI), modelo e esforço pelo tipo da tarefa, e checagem de MCP na secundária. O executor e quem escreve por MCP rodam sempre na principal.
 - Recebem do gerente tudo o que precisam no prompt (caminhos dos documentos e do cartão). Não conversam com o usuário: o que fugir do pedido, eles param e devolvem.
 - Gravam só em `entregas/` e `backups/` do cartão. Não editam quadro, `cartao.md` nem `docs/`.
 

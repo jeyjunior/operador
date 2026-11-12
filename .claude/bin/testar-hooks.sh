@@ -46,6 +46,8 @@ nega_sub    "subagente não edita o kit"                   ".claude/settings.jso
 nega_sub    "subagente não grava solto no cartão"         "operacao/cartoes/001-x/a.txt"
 permite_sub "subagente grava em entregas/"                "operacao/cartoes/001-x/entregas/relatorio.md"
 permite_sub "subagente grava em backups/"                 "operacao/cartoes/001-x/backups/01-resolv.conf"
+if OPERADOR_PAPEL=sub editar "operacao/QUADRO.md" | grep -q '"deny"'; then ok "papel da conta secundária não edita o quadro"; else falha "papel da conta secundária não edita o quadro"; fi
+if OPERADOR_PAPEL=sub editar "operacao/cartoes/001-x/entregas/a.md" | grep -q '"deny"'; then falha "papel da conta secundária grava em entregas/"; else ok "papel da conta secundária grava em entregas/"; fi
 
 HOOK=bloquear-segredos.sh
 nega    "senha literal é negada"                  "operacao/cartoes/001-x/entregas/a.yml" "$SENHA_FICTICIA"
@@ -76,6 +78,33 @@ SAIDA=$(CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/verificar-ambiente.sh")
 if printf '%s' "$SAIDA" | grep -q 'pendentes.*Trello' && ! printf '%s' "$SAIDA" | grep -q 'ssh casa'; then ok "abertura avisa só a ferramenta pendente"; else falha "abertura avisa só a ferramenta pendente"; fi
 if printf '%s' "$SAIDA" | grep -q 'solto.txt'; then ok "abertura avisa arquivo solto"; else falha "abertura avisa arquivo solto"; fi
 if ! command -v jq >/dev/null 2>&1 || printf '%s' "$SAIDA" | jq -e . >/dev/null 2>&1; then ok "abertura gera JSON válido"; else falha "abertura gera JSON válido"; fi
+
+if command -v jq >/dev/null 2>&1; then
+  P="$BASE/principal"
+  mkdir -p "$P" "$K/.claude/bin" "$K/.claude/agents"
+  echo '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"trava-global"}]}]}}' > "$P/settings.json"
+  echo 'REGRA-GLOBAL-DE-TESTE' > "$P/CLAUDE.md"
+  echo 'REGRA-DO-KIT-DE-TESTE' > "$K/CLAUDE.md"
+  cp "$KIT/.claude/settings.json" "$K/.claude/"
+  cp "$KIT/.claude/bin/secundaria.sh" "$K/.claude/bin/"
+  cp "$KIT/.claude/agents/operador-sub-analista.md" "$K/.claude/agents/"
+  sec() { OPERADOR_CONTA_PRINCIPAL="$P" bash "$K/.claude/bin/secundaria.sh" "$@"; }
+  R=$(sec regras)
+  if printf '%s' "$R" | jq -e '(.permissions.ask == null) and (.permissions.deny | length > 0)
+      and ([.hooks.PreToolUse[].hooks[].command] | any(. == "trava-global"))
+      and ([.hooks.PreToolUse[].hooks[].command] | any(test("bloquear-comandos")))' >/dev/null; then
+    ok "secundária recebe as travas da operação e a global, sem ask"
+  else
+    falha "secundária recebe as travas da operação e a global, sem ask"
+  fi
+  I=$(sec instrucoes analista)
+  if printf '%s' "$I" | grep -q REGRA-GLOBAL-DE-TESTE && printf '%s' "$I" | grep -q REGRA-DO-KIT-DE-TESTE && printf '%s' "$I" | grep -q 'Você é o \*\*analista\*\*'; then
+    ok "secundária recebe a regra global, a do kit e o papel"
+  else
+    falha "secundária recebe a regra global, a do kit e o papel"
+  fi
+  if sec rodar executor </dev/null 2>/dev/null; then falha "executor não roda na secundária"; else ok "executor não roda na secundária"; fi
+fi
 
 echo
 if [ "$FALHAS" -eq 0 ]; then echo "Todas as travas passaram."; else echo "$FALHAS falha(s)."; exit 1; fi

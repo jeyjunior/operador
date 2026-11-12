@@ -123,8 +123,7 @@ Cada papel vira um subagente. Nas pausas (⏸), o gerente para e fala com você.
 ## Segurança
 
 - **Nada muda fora da pasta sem o seu ok.** Toda alteração segue a mesma ordem: está no plano aprovado, tem backup em `backups/`, é executada e fica registrada no cartão com o jeito de desfazer. Publicar, enviar mensagem, apagar dados e gastar dinheiro pedem um ok específico, mesmo com o plano aprovado.
-- **Segredos ficam com você**: em `operacao/parametros/`, no `~/.ssh/config`, no conector MCP. O Claude usa acesso só por referência (alias do SSH, conector autenticado) e nunca lê, pede ou imprime o valor.
-- **Dados de pessoas** (alunos, clientes) não saem para serviços externos sem você pedir.
+- **Segredos ficam com você**: em `operacao/parametros/`, no `~/.ssh/config`, no conector MCP. O Claude usa acesso só por referência (alias do SSH, conector autenticado) e nunca lê, pede ou imprime o valor.- **Dados de pessoas** (alunos, clientes) não saem para serviços externos sem você pedir.
 - **Sem git nas operações**: nada em `operacao/` tem histórico. Por isso as travas negam apagar arquivos ali (o cancelamento arquiva). Faça backup dessa pasta por conta própria.
 
 ### Travas
@@ -166,6 +165,43 @@ O `settings.local.json` é removido porque guarda permissões dadas em sessões 
 ## Ferramentas
 
 O gerente descobre, durante a análise, se falta alguma ferramenta (MCP do Trello, acesso SSH, API de imagem). Ele pesquisa e propõe; **você liga**: faz o login do conector, coloca a chave no lugar dela e aprova a mudança em `.mcp.json`. A ferramenta fica registrada em `operacao/docs/ferramentas.md` com o status, e o kit avisa ao abrir a sessão enquanto ela estiver pendente.
+
+## Conta secundária (opcional)
+
+Se você tem uma segunda conta do Claude Code, o gerente pode rodar o analista, o conferente e os papéis de fluxo nela, pela CLI. A conta principal gasta só o pedido e o resumo; a leitura e o raciocínio pesados ficam na secundária.
+
+**Preparar, uma vez por máquina** (PowerShell):
+
+```powershell
+$env:CLAUDE_CONFIG_DIR = "$HOME\.claude-secundaria"
+claude
+```
+
+Faça login com a conta secundária e saia com `/exit`. Para usar outra pasta, defina a variável de ambiente `OPERADOR_CONTA_CLI` com o caminho dela.
+
+**Ao abrir uma sessão**, o `/operador-iniciar`:
+
+1. se há um setup salvo na operação, pergunta só se usa o salvo ou ajusta;
+2. confere se a secundária existe e está logada;
+3. **onde rodam os subagentes:** perguntar a cada um, na secundária durante todo o ciclo, ou só na principal;
+4. **modelos:** o padrão do operador, ou um setup seu, com modelo e esforço por tipo de tarefa (pesquisa, análise, execução, criação, conferência);
+5. oferece salvar para a operação.
+
+**Padrão do operador:** sonnet em tudo (baixo na pesquisa e na conferência, médio no resto). Sobe para opus alto quando há risco difícil de desfazer, mais de um caminho razoável ou um alvo crítico, e diz o motivo. No seu setup, o gerente não sobe nada sozinho: pergunta antes.
+
+**MCP na secundária:** antes de disparar um papel que precisa de MCP, o gerente roda `secundaria.sh mcp` (sem tokens). Se o MCP faltar, ele pergunta: você habilita na secundária e ele espera, o papel roda na principal, ou o passo é abortado (o cartão fica onde está). Lá, o MCP é liberado só para leitura.
+
+A cada papel, o kit entrega à secundária as suas regras globais (`~/.claude/CLAUDE.md` e os hooks de `~/.claude/settings.json`), o `CLAUDE.md` e as rules da operação, as travas da operação e o texto do papel. Nada é gravado na pasta da secundária. Para ver o que vai em cada chamada: `bash .claude/bin/secundaria.sh regras` e `bash .claude/bin/secundaria.sh instrucoes analista`.
+
+**O que roda onde:**
+
+| Papel | Onde |
+|---|---|
+| Analista, conferente, papéis de fluxo (inclusive lendo Trello ou Notion) | secundária, se escolhida e se ela tiver o MCP |
+| Executor | sempre principal (a CLI não pede confirmação no meio) |
+| Papel que escreve por MCP (mover cartão, criar página) | sempre principal |
+
+Na secundária, o papel roda com as travas da operação e só grava em `entregas/` e `backups/` do cartão. Requer `jq`.
 
 ## Atualizar o kit numa operação
 

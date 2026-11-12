@@ -20,7 +20,7 @@ Peça ao usuário para descrever o jeito de trabalhar (`$ARGUMENTS` pode já tra
 
 - quando usar este fluxo (que pedido o dispara);
 - o que o usuário entrega no começo e o que fica em `entregas/` no fim;
-- para cada papel: o que faz, que ferramenta usa, o que entrega;
+- para cada papel: o que faz, de que tipo é (pesquisa, análise, execução, criação ou conferência), que ferramenta usa (MCP: só leitura ou também escrita), o que entrega;
 - onde o usuário quer decidir (as pausas ⏸);
 - o que acontece se uma revisão reprovar: volta para qual passo, quantas vezes no máximo.
 

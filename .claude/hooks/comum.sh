@@ -43,7 +43,8 @@ campo_da_entrada() {
 caminho_da_entrada() { campo_da_entrada "$1" '.tool_input.file_path'; }
 
 # O Claude Code só envia agent_id quando a ferramenta é chamada de dentro de um subagente.
-eh_subagente() { [ -n "$(campo_da_entrada "$1" '.agent_id')" ]; }
+# Papel rodado na conta secundária é uma sessão própria, sem agent_id: secundaria.sh marca com OPERADOR_PAPEL.
+eh_subagente() { [ "${OPERADOR_PAPEL:-}" = sub ] || [ -n "$(campo_da_entrada "$1" '.agent_id')" ]; }
 
 json_texto() {
   local s=$1
