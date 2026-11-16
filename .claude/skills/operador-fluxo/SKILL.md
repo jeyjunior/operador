@@ -13,6 +13,7 @@ Você é o **gerente** (veja "Papéis" no `CLAUDE.md`). Um fluxo substitui a an�
 
 1. Leia `operacao/QUADRO.md`, `operacao/docs/operacao.md`, `ferramentas.md` e os fluxos de `docs/fluxos/`. Com cartão aberto, diga que o fluxo é ajustado depois do `/operador-encerrar` e pare.
 2. Novo ou ajuste? Para ajuste, mostre o fluxo atual.
+3. Fluxo de imagem ou vídeo: parta de `.claude/skills/operador-midia/fluxo-midia.md` e pergunte só o que ele deixa para a operação (ferramenta, identidade visual, personagens, proporção, teto de créditos, lote). Os papéis citam os caminhos dos arquivos da skill que usam.
 
 ## 2. Entender
 

@@ -108,6 +108,17 @@ Fluxo 01 — gerar post
 
 Cada papel vira um subagente. Nas pausas (⏸), o gerente para e fala com você. Quando um pedido combina com um fluxo, o `/operador-iniciar` o usa no lugar da análise e da execução padrão.
 
+### Imagem e vídeo
+
+A skill `operador-midia` (não é comando: o gerente a carrega sozinho quando o pedido envolve imagem ou vídeo) traz o conhecimento base:
+
+- `estilos.md` e `estilos.jpg`: 15 estilos com o bloco de prompt de cada um e a folha numerada para você escolher;
+- `google-flow.md`: como operar o Google Flow (gerar, baixar, animar, créditos, o que dá errado);
+- `conferencia.md`: o que conferir em cada imagem e vídeo;
+- `fluxo-midia.md`: modelo de fluxo que o `/operador-fluxo` adapta à operação.
+
+É ponto de partida: o que a operação decide em `operacao/docs/` (identidade visual, estilos próprios) vale mais. A operação não edita a skill; fato novo vira pesquisa ou decisão da operação e é levado ao kit depois.
+
 ---
 
 ## Papéis

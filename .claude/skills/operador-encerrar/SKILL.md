@@ -25,6 +25,7 @@ Se o cartão revelou algo novo sobre a operação, uma ferramenta ou um fluxo, p
 ## 3. Lições e pendências
 
 1. Releia o cartão: o que deu errado, o que se repetiu, o que o usuário precisou explicar que deveria estar escrito. Proponha as lições e o que fazer com cada uma (regra em `.claude/rules/`, ajuste em `operacao.md`, `ambiente.md` ou num fluxo, ou nada). Pergunte o que o usuário acrescenta. Com o ok, aplique e grave em "Lições".
+   Fato novo e genérico sobre geração de imagem ou vídeo (gerador, estilo, defeito recorrente): não edite `.claude/skills/operador-midia/`. Grave na operação (`docs/pesquisas/` ou `docs/decisoes/`) e acrescente em "Para o backlog" um item "levar ao kit: <fato>".
 2. Cada item de "Para o backlog" entra no Backlog do quadro com um número novo do "Próximo ID".
 3. Confira "Entregas": cada arquivo de `<cartao>/entregas/` está listado com uma linha do que é.
 
