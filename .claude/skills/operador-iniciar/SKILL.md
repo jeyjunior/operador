@@ -7,16 +7,16 @@ argument-hint: "[o que você precisa, opcional]"
 
 # Iniciar
 
-Esta sessão é o **gerente** (veja "Papéis" no `CLAUDE.md`). Use os modelos de `.claude/modelos/documentos.md`. Grave cada resposta e decisão no `cartao.md` antes de seguir para o passo seguinte: é assim que um gerente novo retoma.
+Esta sessão é o **gerente** (veja "Papéis" no `CLAUDE.md`). Use os modelos de `.claude/modelos/documentos.md`. Grave cada resposta e decisão no `cartao.md` antes de seguir para o passo seguinte: é assim que um gerente novo, de qualquer conta, retoma. A cada parada (fim de passo, pausa, espera pelo usuário), regrave "Onde parou"; esperando o usuário, `Status: aguardando-usuario`, e com a resposta volte ao status do passo.
 
 `<cartao>` é `operacao/cartoes/NNN-titulo/`.
 
 ## 1. Descobrir onde a operação está
 
-Uma vez por sessão, antes de tudo, siga "Motores: conta e modelos" (no fim deste arquivo). Depois, siga o primeiro caso que valer:
+Antes do primeiro disparo de subagente da sessão (e não antes), siga "Motores: conta e modelos" (no fim deste arquivo). Consulta não dispara; cartão retomado com linha `Motores:` não pergunta. Siga o primeiro caso que valer:
 
 1. **Não existe `operacao/QUADRO.md`:** operação nova. Vá ao passo 2.
-2. **O quadro tem cartão aberto:** leia `<cartao>/cartao.md` e retome pelo `Status` (passo 4 em diante). Diga de onde está retomando. Pedido novo vai para o Backlog.
+2. **O quadro tem cartão aberto:** leia `<cartao>/cartao.md` e retome por "Onde parou" e pelo `Status` (passo 4 em diante). Diga de onde está retomando. Pedido novo vai para o Backlog.
 3. **Nenhum cartão aberto:**
    1. Se esta conversa já fechou um cartão, peça uma sessão nova: um cartão por gerente.
    2. Leia `operacao/docs/operacao.md`, `ambiente.md`, `ferramentas.md` e a lista de `docs/fluxos/`.
@@ -46,14 +46,14 @@ Com as respostas:
 
 ## 3. Briefing
 
-1. Crie o cartão: número = "Próximo ID" (ou o do item de Backlog/A fazer que originou); incremente o "Próximo ID". Crie `<cartao>` com `cartao.md`, `entregas/` e `backups/`. No quadro, o cartão vai para "Fazendo" e a "Situação" aponta para ele.
+1. Crie o cartão: número = "Próximo ID" (ou o do item de Backlog/A fazer que originou); incremente o "Próximo ID". Crie `<cartao>` com `cartao.md` (`Status: briefing`), `entregas/` e `backups/`. No quadro, o cartão vai para "Fazendo" e a "Situação" aponta para ele.
 2. Veja se um fluxo de `docs/fluxos/` serve ("Quando usar"). Se servir, pergunte se usa; grave em `Fluxo:`.
 3. Pergunte só o que mudar o trabalho: o que deve existir no fim, como saber que está pronto (observável), o que fica de fora. Com fluxo, pergunte a "Entrada" que ele pede. O que já está em `ambiente.md` não vira pergunta.
 4. Grave em "Briefing" e mude o `Status` para `análise`.
 
 ## 4. Análise
 
-**Com fluxo:** siga os passos dele no lugar dos passos 4, 6 e 7. Cada papel é um subagente `general-purpose` (ou `geral` na conta secundária, veja "Disparo de um papel") com o texto do papel, os caminhos de `operacao/docs/operacao.md`, `ambiente.md` e `<cartao>`, e a regra: "grave só em `<cartao>/entregas/`; não converse com o usuário: se algo fugir do pedido, pare e devolva". Em cada ⏸, mostre o resultado ao usuário e espere. Grave o resumo de cada passo em "Execução". Ação que altera algo fora de `operacao/` (publicar, mover cartão do Trello, mudar o servidor) só com plano aprovado (passo 5) ou ok específico.
+**Com fluxo:** siga os passos dele no lugar dos passos 4, 6 e 7. Cada papel é um subagente `general-purpose` (ou `geral` na conta secundária, veja "Disparo de um papel") com o texto do papel, os caminhos de `operacao/docs/operacao.md`, `ambiente.md` e `<cartao>`, e a regra: "grave só em `<cartao>/entregas/`; não converse com o usuário: se algo fugir do pedido, pare e devolva". Em cada ⏸, mostre o resultado ao usuário e espere. Grave o resumo de cada passo em "Execução". Se o fluxo altera algo fora de `operacao/` (publicar, mover cartão do Trello, mudar o servidor), escreva antes o passo 5 só com essas ações (backup e desfazer) e peça o ok; durante os passos do fluxo, o `Status` fica `execução`. Publicar, enviar, apagar e gastar seguem pedindo ok específico.
 
 **Sem fluxo:** dispare o analista (veja "Disparo de um papel") com:
 
@@ -69,7 +69,7 @@ Mostre o resumo, decida com o usuário a opção e grave em "Análise". Decisão
 
 Escreva em "Plano" a lista de ações, cada uma com: o que altera, o backup (arquivo em `backups/`, ou o motivo de não haver) e como desfazer. Inclua a instalação de algo só depois da pesquisa de segurança da regra global do usuário. Marque as ações que pedem ok específico (publicar, enviar, apagar dados, gastar).
 
-Revise antes de mostrar: nada "a definir", cada ação verificável, critério de pronto conferível. Mostre e peça o **ok explícito**. Com o ok, grave a data em "Aprovado pelo usuário em" e o `Status` `aprovado`.
+Revise antes de mostrar: nada "a definir", cada ação verificável, critério de pronto conferível. Mostre e peça o **ok explícito**. Com o ok, grave a data e as ações aprovadas em "Aprovado pelo usuário" e o `Status` `aprovado`. Ação nova depois disso: mesma linha, nova data.
 
 ## 6. Execução
 
@@ -79,7 +79,7 @@ Mude o `Status` para `execução` e dispare o subagente `operador-sub-executor`,
 
 Ações que pedem ok específico: pare antes delas, mostre ao usuário e só então dispare o executor para elas.
 
-Grave o retorno em "Execução" e em "Alterações". Se o executor parou, mostre ao usuário e decida: ajustar o plano (volta ao passo 5), desfazer ou seguir.
+Grave o retorno em "Execução" e em "Alterações". Cada alteração entra na hora em `ambiente.md`, marcada `#NNN, em curso`. Se o executor parou, mostre ao usuário e decida: ajustar o plano (volta ao passo 5), desfazer ou seguir.
 
 ## 7. Conferência
 
@@ -97,7 +97,7 @@ Quando falta uma ferramenta, ou ela está `pendente`:
 
 1. Pesquise as opções (preferindo o que já está instalado e o oficial do serviço), aplicando a regra global de segurança de dependências do usuário a qualquer pacote ou MCP.
 2. Proponha uma ao usuário, com custo e o que ela acessa.
-3. O usuário liga: login no conector, chave em `operacao/parametros/` ou no cofre, `~/.ssh/config`. Alterar `.mcp.json` ou `.claude/settings.json`, só com o ok dele.
+3. O usuário liga: login no conector, chave em `operacao/parametros/` ou no cofre, `~/.ssh/config`. Alterar `.mcp.json` ou as permissões da operação (`.claude/settings.local.json`), só com o ok dele.
 4. Teste com uma leitura simples e atualize `ferramentas.md` com `ok (testado AAAA-MM-DD)`.
 
 ## Motores: conta e modelos

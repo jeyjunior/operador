@@ -5,10 +5,10 @@
 # Linhas vazias e começadas por # são ignoradas. Origem: vault (portado do gitleaks).
 
 # Senha, token ou chave com valor literal entre aspas (8+ caracteres), com = ou : (código, JSON, YAML)
-([Aa][Pp][Ii][_-]?[Kk][Ee][Yy]|[Pp]ass(word|wd)|PASS(WORD|WD)|[Ss]enha|SENHA|[Tt]oken|TOKEN|[Ss]ecret|SECRET|[Ss]egredo|SEGREDO)["']?\s*[:=]\s*["'][^"']{8,}["']|||(\.md$|\.example$|\.sample$)
+([Aa][Pp][Ii][_-]?[Kk][Ee][Yy]|[Pp]ass(word|wd)|PASS(WORD|WD)|[Ss]enha|SENHA|[Tt]oken|TOKEN|[Ss]ecret|SECRET|[Ss]egredo|SEGREDO)["']?\s*[:=]\s*["'][^"']{8,}["']|||(^\.claude/|^[^/]+\.md$|\.example$|\.sample$)
 
 # Senha em connection string (Password=... ou Pwd=..., sem espaço antes do =)
-([Pp]assword|PASSWORD|[Pp]wd|PWD)=[^;"'[:space:]{$]{4,}|||(\.md$|\.example$|\.sample$)
+([Pp]assword|PASSWORD|[Pp]wd|PWD)=[^;"'[:space:]{$]{4,}|||(^\.claude/|^[^/]+\.md$|\.example$|\.sample$)
 
 # Chave privada (RSA, OPENSSH, DSA, EC, PGP, ENCRYPTED)
 -----BEGIN [A-Z ]*PRIVATE KEY-----
@@ -47,6 +47,6 @@ xox[baprs]-[0-9a-zA-Z-]+
 https://hooks\.slack\.com/services/T[A-Z0-9]{8,}/B[A-Z0-9]{8,}/[A-Za-z0-9]{24,}
 https://(discord|discordapp)\.com/api/webhooks/[0-9]+/[A-Za-z0-9_-]+
 SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}
-secret_[a-zA-Z0-9]{43}|||(\.md$)
+secret_[a-zA-Z0-9]{43}|||(^\.claude/|^[^/]+\.md$)
 lin_api_[a-zA-Z0-9]{40}
 figd_[a-zA-Z0-9_-]{40,}

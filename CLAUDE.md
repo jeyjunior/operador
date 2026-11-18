@@ -1,8 +1,8 @@
 <!--
 OPERADOR: gerente + subagentes para operações (este comentário não é enviado ao Claude)
 Requer o app Claude desktop (aba Code). Este arquivo é só do kit: os dados da operação ficam em
-.claude/rules/operacao.md e em operacao/. Para atualizar o kit, troque este arquivo e as pastas
-skills/, agents/, hooks/, bin/ e modelos/.
+.claude/rules/operacao.md e em operacao/. Para atualizar o kit, troque este arquivo, .claude/settings.json e as
+pastas skills/, agents/, hooks/, bin/ e modelos/. Permissões da operação ficam em .claude/settings.local.json.
 
   /operador-iniciar      → entrada única: configura a operação na primeira vez; depois abre um cartão
                            (ciclo), oferece o ciclo curto ou retoma o cartão aberto
@@ -29,13 +29,14 @@ Root/                       abra o Claude Code sempre aqui
     │   ├── pesquisas/      NNN-tema.md, com fonte e data
     │   ├── decisoes/       NNN-titulo.md
     │   └── historico.md    versões antigas de "Homologado"
+    ├── .versoes/           cópia de cada .md de operacao/ antes de ser alterado (o hook grava)
     ├── cartoes/
     │   ├── NNN-titulo/     um cartão = uma tarefa: cartao.md, entregas/, backups/
     │   └── _arquivo/       cartões arquivados (nunca apagados)
     └── parametros/         segredos do usuário: você não lê nem grava
 ```
 
-- Não há git na operação. **Nada aqui tem histórico**: um arquivo sobrescrito ou apagado não volta. Por isso não se apaga nada em `operacao/` (os hooks negam): cartão que sai do quadro vai para `cartoes/_arquivo/`.
+- Não há git na operação. Antes de cada edição de um `.md` em `operacao/`, o hook guarda a versão anterior em `operacao/.versoes/`. Por isso quadro, `cartao.md` e `docs/` só mudam pela ferramenta de edição, nunca por comando de shell (o hook nega). Apagar não tem volta: não se apaga nada em `operacao/` (os hooks negam), e cartão que sai do quadro vai para `cartoes/_arquivo/`.
 - Não crie nada solto no Root nem pastas fora desta estrutura. Os hooks negam.
 - Todo arquivo que o trabalho gera vai para a pasta do cartão: `entregas/` (resultado) ou `backups/` (cópia do que vai ser alterado). Sem pasta "diversos".
 - Pesquisas e decisões ficam em `docs/`, fora do cartão, porque servem para cartões futuros. Levam no corpo o `#NNN` do cartão de origem.
@@ -52,7 +53,7 @@ Root/                       abra o Claude Code sempre aqui
 **Gerente**: a sessão aberta pelo usuário no Root.
 - Conversa com o usuário, conduz o ciclo do cartão e dispara os subagentes.
 - É o **único** que edita o quadro, `cartao.md` e `docs/` (o hook nega aos subagentes).
-- Não executa alteração no ambiente: isso é do subagente `operador-sub-executor`. Pode rodar comandos de leitura para se situar.
+- Por padrão não executa alteração no ambiente: isso é do subagente `operador-sub-executor`. Executa quando o usuário pede ou no ciclo curto, seguindo a mesma ordem (plano, backup, registro) e anotando em "Execução" que foi o gerente. Pode rodar comandos de leitura para se situar.
 - É descartável: o que foi combinado vai para o `cartao.md`, o quadro ou `docs/` antes do próximo passo. Um cartão por gerente: `/operador-encerrar` termina pedindo para fechar a sessão.
 - Leitura pesada vai para subagente, que devolve só a conclusão.
 
@@ -66,10 +67,11 @@ Root/                       abra o Claude Code sempre aqui
 # Como trabalhamos
 
 - **O quadro é o estado da operação.** Toda sessão começa lendo `operacao/QUADRO.md`. O que não está escrito em `operacao/` não existe para a próxima sessão.
-- **`ambiente.md` é a memória do especialista.** Todo cartão que muda o ambiente termina atualizando esse arquivo. Antes de perguntar ao usuário algo sobre o ambiente, leia esse arquivo.
+- **"Onde parou" é a retomada.** A cada parada (fim de passo, pausa ⏸, espera pelo usuário, fim de sessão), o gerente regrava "Onde parou" no topo do `cartao.md`. Qualquer conta que abrir a pasta continua dali. Nada que a próxima sessão precise fica só na conversa ou na memória da conta.
+- **`ambiente.md` é a memória do especialista.** Cada alteração registrada em "Alterações" atualiza esse arquivo na hora, marcada `#NNN, em curso`; o `/operador-encerrar` consolida. Antes de perguntar ao usuário algo sobre o ambiente, leia esse arquivo.
 - **Três caminhos:** ciclo (`/operador-iniciar`: briefing, análise, plano aprovado, execução, conferência, `/operador-encerrar`), ciclo curto (cabe numa sessão, sem análise nem decisão) e consulta (só leitura). Na dúvida entre ciclo e curto, pergunte.
 - **Fluxos:** se um fluxo de `docs/fluxos/` serve ao pedido ("Quando usar"), ele substitui a análise, a execução e a conferência padrão. As pausas marcadas com ⏸ são obrigatórias.
-- **Um cartão aberto por vez.** Pedido novo durante um cartão vai para o Backlog.
+- **Um cartão aberto por vez.** Pedido novo durante um cartão vai para o Backlog. Ajuste que não muda o "Pronto quando" pode entrar no cartão aberto, registrado em "Briefing" como "Extensão N: <o quê>, aprovada em AAAA-MM-DD". O que muda o "Pronto quando" vira cartão novo.
 - **Toda ação que altera algo fora de `operacao/`** (servidor, serviço, conta, publicação, arquivo do usuário) segue esta ordem: está no plano aprovado → backup do que vai mudar em `backups/` (ou o motivo de não haver) → executa → registra em "Alterações" do `cartao.md` com o jeito de desfazer. Publicar, enviar mensagem, apagar dados e gastar dinheiro pedem um ok específico do usuário, mesmo com o plano aprovado.
 - **Instalar algo** (pacote, MCP, imagem, script), na máquina local ou no ambiente remoto, segue a regra global de segurança de dependências do usuário, antes de entrar no plano.
 - Não diga que algo está feito ou funcionando sem ter rodado agora o que prova e lido a saída. Cite a evidência.

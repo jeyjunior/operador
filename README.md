@@ -59,7 +59,7 @@ Um cartão é **uma tarefa inteira**, com começo, meio e fim. "Instalar o AdGua
 | Backlog | pedidos e ideias |
 | A fazer | combinado, ainda não começou |
 | Fazendo | o cartão aberto (um por vez) |
-| Feito | executado e conferido |
+| Feito | executado; conferido ou com a conferência dispensada por você |
 | Homologado | você validou no uso real |
 
 ---
@@ -134,20 +134,23 @@ A skill `operador-midia` (não é comando: o gerente a carrega sozinho quando o 
 ## Segurança
 
 - **Nada muda fora da pasta sem o seu ok.** Toda alteração segue a mesma ordem: está no plano aprovado, tem backup em `backups/`, é executada e fica registrada no cartão com o jeito de desfazer. Publicar, enviar mensagem, apagar dados e gastar dinheiro pedem um ok específico, mesmo com o plano aprovado.
-- **Segredos ficam com você**: em `operacao/parametros/`, no `~/.ssh/config`, no conector MCP. O Claude usa acesso só por referência (alias do SSH, conector autenticado) e nunca lê, pede ou imprime o valor.- **Dados de pessoas** (alunos, clientes) não saem para serviços externos sem você pedir.
-- **Sem git nas operações**: nada em `operacao/` tem histórico. Por isso as travas negam apagar arquivos ali (o cancelamento arquiva). Faça backup dessa pasta por conta própria.
+- **Segredos ficam com você**: em `operacao/parametros/`, no `~/.ssh/config`, no conector MCP. O Claude usa acesso só por referência (alias do SSH, conector autenticado) e nunca lê, pede ou imprime o valor.
+- **Dados de pessoas** (alunos, clientes) não saem para serviços externos sem você pedir.
+- **Sem git nas operações**: antes de cada edição de um `.md` em `operacao/`, o kit guarda a versão anterior em `operacao/.versoes/`. Apagar não tem volta: as travas negam apagar arquivos ali (o cancelamento arquiva). Faça backup dessa pasta por conta própria.
 
 ### Travas
 
 | Trava | O que faz |
 |---|---|
-| `hooks/proteger-estrutura.sh` | Nada solto no Root; `parametros/` negado; subagente só grava em `entregas/` e `backups/` do cartão. |
-| `hooks/bloquear-comandos.sh` | Comandos destrutivos (inclusive dentro de `ssh "..."`), apagar em `operacao/`, parar o SSH do servidor. |
+| `hooks/proteger-estrutura.sh` | Nada solto no Root; `parametros/` negado; subagente só grava em `entregas/` e `backups/` do cartão (caminho com `..` resolvido antes). Fora da operação, só o executor grava, e nunca na configuração do Claude, em `~/.ssh` ou em outra operação. |
+| `hooks/bloquear-comandos.sh` | Nega comandos destrutivos (inclusive dentro de `ssh "..."`), apagar em `operacao/`, escrever no quadro, em `docs/` ou em `cartao.md` por shell, tocar em `parametros/` e agendar tarefa no Windows. Pede confirmação para o que pode trancar ou derrubar um servidor (`ufw`, `iptables`, `reboot`, `shutdown`, remover o `openssh`); na conta secundária, nega. |
+| `hooks/proteger-mcp.sh` | Ferramenta de MCP que escreve (enviar, publicar, criar, mover, apagar): você confirma cada chamada do gerente e do executor; os outros papéis e a conta secundária não usam. |
+| `hooks/versionar.sh` | Guarda a versão anterior de cada `.md` de `operacao/` em `operacao/.versoes/` antes da edição. |
 | `hooks/bloquear-segredos.sh` | Nega edição que escreve chave, token ou senha literal. |
 | `hooks/verificar-ambiente.sh` | Ao abrir a sessão: estrutura, `jq`, ferramenta pendente, `.git` copiado por engano. |
-| `settings.json` | Nega ler `parametros/` e `.env`; `ssh`, `scp` e `rsync` pedem confirmação. |
+| `settings.json` | Nega ler `parametros/` e `.env`; `ssh`, `scp` e `rsync` pedem confirmação; editar hooks, scripts, agentes e as permissões da operação também. |
 
-Limites conhecidos: as travas pegam o óbvio, não tudo. O "só leitura" do analista e do conferente no ambiente remoto é por instrução, não por trava.
+Limites conhecidos: as travas pegam o óbvio, não tudo. O "só leitura" do analista e do conferente no ambiente remoto é por instrução, não por trava. Escrita por shell que não cita o caminho (`cd operacao && ...`) não é pega. O hook de MCP reconhece a ação pelo nome da ferramenta (`send`, `create`, `delete`...): nome fora do padrão passa.
 
 ---
 
@@ -216,11 +219,13 @@ Na secundária, o papel roda com as travas da operação e só grava em `entrega
 
 ## Atualizar o kit numa operação
 
-Copie a versão nova de `CLAUDE.md` e das pastas `.claude/skills/`, `.claude/agents/`, `.claude/hooks/`, `.claude/bin/` e `.claude/modelos/`. Mantenha `.claude/rules/`, `.claude/settings.json`, `.mcp.json` e `operacao/`, que são da operação.
+Copie a versão nova de `CLAUDE.md`, `.claude/settings.json` e das pastas `.claude/skills/`, `.claude/agents/`, `.claude/hooks/`, `.claude/bin/` e `.claude/modelos/`. Mantenha `.claude/rules/`, `.claude/settings.local.json`, `.mcp.json` e `operacao/`, que são da operação.
+
+O `settings.json` é do kit (travas e permissões base): trocar leva os hooks novos. Se a operação tinha mudado o `settings.json` antes desta regra, passe essas permissões para o `settings.local.json` antes de copiar.
 
 ## Personalização
 
-- **`.claude/settings.json`**: permissões. Uma operação de servidor pode liberar `ssh` sem confirmação.
+- **`.claude/settings.local.json`**: permissões da operação, somadas às do kit (inclusive na conta secundária). Uma operação de servidor pode liberar `ssh` sem confirmação: `{"permissions": {"allow": ["Bash(ssh casa *)"]}}`. Não edite o `settings.json`: ele é do kit e é trocado na atualização.
 - **`.claude/rules/`**: regras da operação (o `operacao.md` é criado pelo `/operador-iniciar`).
 - **`.claude/modelos/documentos.md`**: os modelos do quadro, do cartão e dos documentos.
 - **`.claude/hooks/padroes-segredos.txt`**: as expressões regulares de segredo.

@@ -1,6 +1,6 @@
 # Modelos de documentos
 
-Tudo fica em `operacao/`, sem histórico. Mantenha cada documento curto e em português.
+Tudo fica em `operacao/`, sem git (o hook guarda a versão anterior de cada `.md` em `operacao/.versoes/`). Mantenha cada documento curto e em português.
 
 ## .claude/rules/operacao.md
 
@@ -48,7 +48,7 @@ Só o gerente edita. Uma linha por cartão; o detalhe fica na pasta dele.
 - #007 <título> — `cartoes/007-titulo/`
 ```
 
-- **Backlog:** pode virar trabalho. **A fazer:** combinado, ainda não começou. **Fazendo:** o cartão aberto. **Feito:** executado e conferido. **Homologado:** o usuário validou no uso real.
+- **Backlog:** pode virar trabalho. **A fazer:** combinado, ainda não começou. **Fazendo:** o cartão aberto. **Feito:** executado; conferido, ou com a conferência dispensada pelo usuário (registrado no cartão). **Homologado:** o usuário validou no uso real.
 - "Homologado" guarda os 3 grupos mais recentes; os anteriores vão para `operacao/docs/historico.md`, no mesmo formato.
 - Cartão cancelado sai do quadro: a pasta vai para `cartoes/_arquivo/` e o motivo fica no `cartao.md`.
 
@@ -206,9 +206,16 @@ Criado pelo gerente quando o cartão vai para "Fazendo". Só o gerente edita.
 ```markdown
 # #NNN — <título>
 
-Status: briefing | análise | plano | aprovado | execução | conferência | concluído | cancelado
+Status: briefing | análise | plano | aprovado | execução | aguardando-usuario | conferência | concluído | cancelado
 Aberto: AAAA-MM-DD · Fechado: AAAA-MM-DD · Fluxo: <NN-nome ou "padrão">
 Motores: <conta dos subagentes; modelos padrão ou setup; MCPs que a secundária tem>
+
+## Onde parou
+- Atualizado: AAAA-MM-DD HH:MM
+- Último feito: <a última coisa concluída, com o número da ação>
+- Próximo passo: <o que fazer agora, concreto>
+- Esperando: ninguém | usuário: <o quê>
+- Atenção: <o que fica fora desta pasta e precisa estar vivo: login do navegador, conector, sessão SSH> (ou "nada")
 
 ## Briefing
 - O que: ...
@@ -221,7 +228,7 @@ Motores: <conta dos subagentes; modelos padrão ou setup; MCPs que a secundária
 
 ## Plano
 - [ ] 1. <ação> — altera: <o quê> — backup: <arquivo em backups/ ou "não se aplica: motivo"> — desfazer: <como>
-Aprovado pelo usuário em: AAAA-MM-DD
+Aprovado pelo usuário: AAAA-MM-DD (ações 1 a N) · AAAA-MM-DD (ação N+1, extensão 1)
 
 ## Execução
 - <o que foi feito, desvios e problemas, com trecho da saída que prova>
@@ -243,4 +250,4 @@ Aprovado pelo usuário em: AAAA-MM-DD
 - <o que surgiu e não cabe aqui> (ou "nada")
 ```
 
-O `Status` diz onde retomar: um gerente novo lê o cartão aberto e continua do passo indicado.
+O `Status` diz em que passo o cartão está; "Onde parou" diz o que fazer agora. Um gerente novo, de qualquer conta, lê os dois e continua. `aguardando-usuario` vale enquanto o cartão espera uma resposta ou ação do usuário; com a resposta, volta ao status do passo.

@@ -18,7 +18,7 @@ Leia `operacao/QUADRO.md` e `<cartao>/cartao.md`. Sem cartão aberto, diga isso 
 
 ## 2. Ambiente
 
-Se o cartão mudou o ambiente, atualize `operacao/docs/ambiente.md` só com o que é verdade agora, citando `#NNN`, e a data em "Atualizado". Mostre o trecho ao usuário. Se nada mudou no ambiente, diga isso em uma linha.
+Se o cartão mudou o ambiente, consolide `operacao/docs/ambiente.md`: só o que é verdade agora, citando `#NNN`, sem as marcas "em curso", e a data em "Atualizado". Mostre o trecho ao usuário. Se nada mudou no ambiente, diga isso em uma linha.
 
 Se o cartão revelou algo novo sobre a operação, uma ferramenta ou um fluxo, proponha a mudança em `operacao.md`, `ferramentas.md` ou no fluxo e, com o ok, grave.
 

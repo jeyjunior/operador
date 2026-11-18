@@ -8,7 +8,11 @@
       "PowerShell(ssh *)",
       "PowerShell(scp *)",
       "Edit(/.mcp.json)",
-      "Edit(/.claude/settings.json)"
+      "Edit(/.claude/settings.json)",
+      "Edit(/.claude/settings.local.json)",
+      "Edit(/.claude/hooks/**)",
+      "Edit(/.claude/bin/**)",
+      "Edit(/.claude/agents/**)"
     ],
     "deny": [
       "Read(/operacao/parametros/**)",
@@ -19,7 +23,8 @@
       "Read(**/segredo.json)",
       "Read(**/segredos.json)",
       "Read(**/secrets.json)",
-      "Read(~/.ssh/**)"
+      "Read(~/.ssh/**)",
+      "Edit(~/.ssh/**)"
     ]
   },
   "hooks": {
@@ -57,6 +62,21 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/bloquear-segredos.sh\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/versionar.sh\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/proteger-mcp.sh\"",
             "timeout": 10
           }
         ]

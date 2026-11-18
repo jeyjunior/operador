@@ -3,7 +3,9 @@
 #   operacao/parametros/   negado a todos.
 #   operacao/              gerente: liberado. Subagente: só cartoes/<cartão>/entregas/ e backups/.
 #   kit (CLAUDE.md, README.md, .claude/, .mcp.json)   gerente: liberado. Subagente: negado.
-#   qualquer outra coisa no Root: negado. Fora do Root: não interfere.
+#   qualquer outra coisa no Root: negado.
+#   fora do Root: gerente liberado; executor liberado, menos config do Claude, ~/.ssh e outra operação;
+#   demais subagentes e conta secundária: negado.
 
 ENTRADA=$(cat)
 source "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
@@ -11,9 +13,17 @@ source "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 ARQ=$(caminho_da_entrada "$ENTRADA")
 [ -n "$ARQ" ] || exit 0
 REL=$(relativo_a_raiz "$ARQ")
-fora_do_root "$REL" && exit 0
 SUB=""
 eh_subagente "$ENTRADA" && SUB=1
+
+if fora_do_root "$REL"; then
+  [ -n "$SUB" ] || exit 0
+  eh_executor "$ENTRADA" || negar_ferramenta "Este papel não grava fora da operação ($REL). Grave em $PASTA_OPERACAO/cartoes/<cartão>/entregas/."
+  if [[ "/$(minusculas "$REL")" =~ /(\.claude[^/]*|\.ssh|$PASTA_OPERACAO)/ ]]; then
+    negar_ferramenta "Subagente não grava em configuração do Claude, em ~/.ssh nem em outra operação ($REL)."
+  fi
+  exit 0
+fi
 
 if NO_OP=$(dentro_de "$PASTA_OPERACAO" "$REL"); then
   NO_OP_N=$(minusculas "$NO_OP")
