@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Cancelar
 
-Você é o **gerente** (veja "Papéis" no `CLAUDE.md`). `<cartao>` é a pasta do cartão aberto, indicada em "Cartão aberto" na "Situação" do quadro.
+Você é o **gerente** (veja "Papéis" no `CLAUDE.md`). `<cartao>` é a pasta do cartão **desta sessão** (o que ela abriu ou retomou, em "Fazendo"). Se não souber qual é, liste os de "Fazendo" e pergunte. Quadro e `ambiente.md` mudam só com Edit, trecho a trecho: outra sessão pode estar gravando neles.
 
 1. Leia `operacao/QUADRO.md` e `<cartao>/cartao.md`. Sem cartão aberto, diga isso e pare.
 2. Peça uma confirmação explícita, citando `#NNN`. Se o usuário só quer parar por agora, indique `/operador-pausar`.
@@ -16,5 +16,5 @@ Você é o **gerente** (veja "Papéis" no `CLAUDE.md`). `<cartao>` é a pasta do
    ```bash
    mv operacao/cartoes/NNN-titulo operacao/cartoes/_arquivo/
    ```
-6. No quadro: o cartão sai de "Fazendo"; se o usuário quiser retomar um dia, um item no Backlog citando `cartoes/_arquivo/NNN-titulo/`. "Cartão aberto" fica "nenhum".
+6. No quadro: o cartão sai de "Fazendo"; se o usuário quiser retomar um dia, um item no Backlog citando `cartoes/_arquivo/NNN-titulo/`. Com cartões em paralelo, rode antes do `mv` `bash .claude/bin/liberar-cartao.sh NNN`.
 7. Diga ao usuário para fechar esta sessão. O número não é reutilizado.

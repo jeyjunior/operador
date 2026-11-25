@@ -148,6 +148,48 @@ SAIDA=$(CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/verificar-ambiente.sh")
 if printf '%s' "$SAIDA" | grep -q 'pendentes.*Trello' && ! printf '%s' "$SAIDA" | grep -q 'ssh casa'; then ok "abertura avisa só a ferramenta pendente"; else falha "abertura avisa só a ferramenta pendente"; fi
 if printf '%s' "$SAIDA" | grep -q 'solto.txt'; then ok "abertura avisa arquivo solto"; else falha "abertura avisa arquivo solto"; fi
 if ! command -v jq >/dev/null 2>&1 || printf '%s' "$SAIDA" | jq -e . >/dev/null 2>&1; then ok "abertura gera JSON válido"; else falha "abertura gera JSON válido"; fi
+rm -f "$K/solto.txt"
+
+# sessao SESSAO FERRAMENTA ARQUIVO CONTEUDO: decisão do proteger-estrutura para o gerente daquela sessão.
+sessao() {
+  printf '{"session_id":"%s","tool_name":"%s","tool_input":{"file_path":"%s","content":"%s"}}' "$1" "$2" "$K/$3" "$4" \
+    | CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/proteger-estrutura.sh" | decisao
+}
+espera_sessao() { local d; d=$(sessao "$2" "$3" "$4" "$5"); if [ "$d" = "$6" ]; then ok "$1"; else falha "$1 (veio: ${d:-nada})"; fi; }
+cartao() { mkdir -p "$K/operacao/cartoes/$1"; printf 'Status: %s\nAlvos: %s\n' "$2" "$3" > "$K/operacao/cartoes/$1/cartao.md"; }
+
+rm -rf "$K/operacao/cartoes"
+cartao 101-banco execução postgres
+espera_sessao "travado: segundo cartão aberto é negado"       s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing' deny
+cartao 101-banco pausado postgres
+espera_sessao "travado: com o outro pausado, o cartão novo abre" s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing' ""
+espera_sessao "travado: Write no quadro continua liberado"      s1 Write operacao/QUADRO.md x ""
+
+printf '# Operação\n\n## Limites\n- Cartões em paralelo: 2\n' > "$K/operacao/docs/operacao.md"
+cartao 101-banco execução postgres
+espera_sessao "paralelo: a sessão 1 pega o cartão 101"          s1 Edit operacao/cartoes/101-banco/cartao.md 'Status: execução' ""
+espera_sessao "paralelo: a sessão 2 não edita o cartão da 1"    s2 Edit operacao/cartoes/101-banco/cartao.md 'Status: execução' deny
+espera_sessao "paralelo: alvo em comum é negado"                s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: postgres' deny
+espera_sessao "paralelo: alvo * conflita com tudo"              s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: *' deny
+espera_sessao "paralelo: alvos diferentes abrem o segundo"      s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: journald' ""
+cartao 102-log briefing journald
+espera_sessao "paralelo: terceiro cartão passa do limite 2"     s3 Write operacao/cartoes/103-x/cartao.md 'Status: briefing' deny
+espera_sessao "paralelo: Write no quadro existente é negado"    s1 Write operacao/QUADRO.md x deny
+espera_sessao "paralelo: Edit no quadro é liberado"             s1 Edit operacao/QUADRO.md x ""
+mkdir -p "$K/.claude/bin"; cp "$KIT/.claude/bin/liberar-cartao.sh" "$KIT/.claude/bin/novo-id.sh" "$K/.claude/bin/"
+bash "$K/.claude/bin/liberar-cartao.sh" 101 >/dev/null
+espera_sessao "paralelo: liberado, outra sessão assume o cartão" s2 Edit operacao/cartoes/101-banco/cartao.md 'Status: execução' ""
+D=$(printf '{"session_id":"s9","tool_input":{"command":"ssh casa sudo reboot"}}' | CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/bloquear-comandos.sh")
+if printf '%s' "$D" | grep -q '"ask"' && printf '%s' "$D" | grep -q '101-banco'; then ok "paralelo: reboot avisa os outros cartões abertos"; else falha "paralelo: reboot avisa os outros cartões abertos"; fi
+A=$(bash "$K/.claude/bin/novo-id.sh"); B=$(bash "$K/.claude/bin/novo-id.sh")
+if [ "$A" = 103 ] && [ "$B" = 104 ]; then ok "novo-id reserva números seguidos sem repetir"; else falha "novo-id reserva números seguidos sem repetir (veio $A e $B)"; fi
+vez() { printf '{"session_id":"%s","tool_name":"Edit","tool_input":{"file_path":"%s"}}' "$1" "$K/operacao/QUADRO.md" | CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/vez.sh" "$2"; }
+vez s1 pegar
+vez s2 soltar
+if [ "$(cat "$K/operacao/.ids/.gravando/sessao" 2>/dev/null)" = s1 ]; then ok "paralelo: a vez de gravar no quadro é de uma sessão e a outra não a solta"; else falha "paralelo: a vez de gravar no quadro é de uma sessão e a outra não a solta"; fi
+vez s1 soltar
+if [ ! -e "$K/operacao/.ids/.gravando" ]; then ok "paralelo: quem pegou a vez a solta"; else falha "paralelo: quem pegou a vez a solta"; fi
+rm -rf "$K/operacao/cartoes" "$K/operacao/.ids" "$K/operacao/docs/operacao.md"
 
 if command -v jq >/dev/null 2>&1; then
   P="$BASE/principal"

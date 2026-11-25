@@ -55,10 +55,10 @@ Um cartão é **uma tarefa inteira**, com começo, meio e fim. "Instalar o AdGua
 
 | Lista | O que tem |
 |---|---|
-| Situação | cartão aberto, decisões pendentes, próximo ID (o próximo passo fica só no cartão) |
+| Situação | decisões pendentes (o próximo passo fica só no cartão) |
 | Backlog | pedidos e ideias |
 | A fazer | combinado e ainda não começou, ou pausado |
-| Fazendo | o cartão aberto (um por vez) |
+| Fazendo | os cartões abertos (um por vez, ou em paralelo se a operação ligar) |
 | Feito | executado; conferido ou com a conferência dispensada por você |
 | Homologado | você validou no uso real |
 
@@ -148,6 +148,8 @@ A skill `operador-midia` (não é comando: o gerente a carrega sozinho quando o 
 | `hooks/bloquear-comandos.sh` | Nega comandos destrutivos (inclusive dentro de `ssh "..."`), apagar em `operacao/`, escrever no quadro, em `docs/` ou em `cartao.md` por shell, tocar em `parametros/` e agendar tarefa no Windows. Pede confirmação para o que pode trancar ou derrubar um servidor (`ufw`, `iptables`, `reboot`, `shutdown`, remover o `openssh`); na conta secundária, nega. |
 | `hooks/proteger-mcp.sh` | Ferramenta de MCP que escreve (enviar, publicar, criar, mover, apagar): você confirma cada chamada do gerente e do executor; os outros papéis e a conta secundária não usam. |
 | `hooks/versionar.sh` | Guarda a versão anterior de cada `.md` de `operacao/` em `operacao/.versoes/` antes da edição. |
+| `hooks/proteger-estrutura.sh` (cartões) | Nega cartão novo além do limite de "Cartões em paralelo"; com o limite acima de 1, nega editar o cartão de outra sessão, dois cartões abertos com alvo em comum e Write em quadro, `ambiente.md` e `historico.md`. |
+| `hooks/vez.sh` | Com cartões em paralelo, uma sessão grava por vez no quadro, `ambiente.md` e `historico.md`. |
 | `hooks/bloquear-segredos.sh` | Nega edição que escreve chave, token ou senha literal. |
 | `hooks/verificar-ambiente.sh` | Ao abrir a sessão: estrutura, `jq`, ferramenta pendente, `.git` copiado por engano. |
 | `settings.json` | Nega ler `parametros/` e `.env`; `ssh`, `scp` e `rsync` pedem confirmação; editar hooks, scripts, agentes e as permissões da operação também. |
@@ -183,6 +185,28 @@ Se o `instalar.cmd` disser que não achou o Git: instale o Git for Windows (http
 ## Ferramentas
 
 O gerente descobre, durante a análise, se falta alguma ferramenta (MCP do Trello, acesso SSH, API de imagem). Ele pesquisa e propõe; **você liga**: faz o login do conector, coloca a chave no lugar dela e aprova a mudança em `.mcp.json`. A ferramenta fica registrada em `operacao/docs/ferramentas.md` com o status, e o kit avisa ao abrir a sessão enquanto ela estiver pendente.
+
+## Cartões em paralelo (opcional)
+
+Por padrão a operação tem **um cartão aberto por vez**. Para tocar duas ou mais tarefas ao mesmo tempo (no servidor: o banco de dados numa sessão, o log de desligamento em outra), troque em `operacao/docs/operacao.md`, na seção "Limites":
+
+```
+- Cartões em paralelo: 3
+```
+
+`1` (ou sem a linha) trava de novo. A linha é da operação: a atualização do kit não a toca.
+
+Como funciona, com o limite acima de 1:
+
+- **Uma sessão do Claude Code por cartão.** Abra outra janela ou aba na mesma pasta e rode `/operador-iniciar`. Um gerente não toca dois cartões: o contexto de um vazaria para o outro.
+- **Limite:** o hook nega o cartão novo que passa do limite, mesmo com duas sessões abrindo no mesmo instante.
+- **Números:** `bash .claude/bin/novo-id.sh` reserva o próximo `#NNN` (uma pasta em `operacao/.ids/`); duas sessões nunca recebem o mesmo.
+- **Dono:** o cartão é da sessão que o editou primeiro (`.dono` na pasta do cartão). Outra sessão é negada nele. Se a sessão dona foi fechada sem pausar, com o seu ok: `bash .claude/bin/liberar-cartao.sh NNN`. O `/operador-pausar` libera sozinho.
+- **Alvos:** cada cartão diz em `Alvos:` o que altera (`postgres`, `journald`, `*` para o ambiente inteiro). Dois cartões abertos com alvo em comum: o hook nega o segundo.
+- **Ações que afetam tudo** (reboot, firewall, acesso): o pedido de confirmação lista os outros cartões abertos.
+- **Quadro, `ambiente.md` e `historico.md`:** só mudam com Edit, e uma sessão grava por vez (o hook `vez.sh` segura a vez durante a gravação). O Edit recusa quando o arquivo mudou depois da leitura, e a sessão relê. Antes de cada gravação, a versão anterior vai para `operacao/.versoes/`.
+
+Não cobre: dois cartões que mexem em coisas que se afetam sem ter o mesmo nome em `Alvos:` (o hook compara palavras); conta secundária e subagentes continuam valendo para o cartão da sessão que os disparou.
 
 ## Conta secundária (opcional)
 

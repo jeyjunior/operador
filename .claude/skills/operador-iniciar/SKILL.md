@@ -9,15 +9,15 @@ argument-hint: "[o que você precisa, opcional]"
 
 Esta sessão é o **gerente** (veja "Papéis" no `CLAUDE.md`). Use os modelos de `.claude/modelos/documentos.md`. Grave cada resposta e decisão no `cartao.md` antes de seguir para o passo seguinte: é assim que um gerente novo, de qualquer conta, retoma. A cada parada (fim de passo, pausa, espera pelo usuário), regrave "Onde parou"; esperando o usuário, `Status: aguardando-usuario`, e com a resposta volte ao status do passo.
 
-`<cartao>` é `operacao/cartoes/NNN-titulo/`.
+`<cartao>` é `operacao/cartoes/NNN-titulo/`, o cartão **desta sessão**. Cartões abertos são os de "Fazendo"; quantos podem ficar abertos ao mesmo tempo diz a linha "Cartões em paralelo" de `operacao/docs/operacao.md` (sem ela, 1). Veja "Cartões em paralelo" no `CLAUDE.md`.
 
 ## 1. Descobrir onde a operação está
 
 Antes do primeiro disparo de subagente da sessão (e não antes), leia e siga `.claude/skills/operador-iniciar/motores.md` (conta, modelos e "Disparo de um papel"). Consulta não dispara; cartão retomado com linha `Motores:` não pergunta, mas o disparo segue o mesmo arquivo. Siga o primeiro caso que valer:
 
 1. **Não existe `operacao/QUADRO.md`:** operação nova. Vá ao passo 2.
-2. **O quadro tem cartão aberto:** leia `<cartao>/cartao.md` e retome por "Onde parou" e pelo `Status` (passo 4 em diante). Diga de onde está retomando. Pedido novo vai para o Backlog. Se o usuário quer trocar de trabalho antes de terminar este, ofereça `/operador-pausar`.
-3. **Nenhum cartão aberto:**
+2. **Há cartão em "Fazendo" e o limite já foi atingido:** com um só, leia `<cartao>/cartao.md` e retome por "Onde parou" e pelo `Status` (passo 4 em diante). Com mais de um, mostre cada um numa linha (número, título, "Onde parou" e a hora dele) e pergunte qual esta sessão retoma: o de outra sessão ainda aberta não se retoma. Diga de onde está retomando. Pedido novo vai para o Backlog. Se o usuário quer trocar de trabalho antes de terminar, ofereça `/operador-pausar`.
+3. **Nenhum cartão aberto, ou abaixo do limite:** se há cartões abertos, diga quais (eles são de outras sessões) e siga com um trabalho que não mexa nos alvos deles.
    1. Se esta conversa já fechou ou pausou um cartão, peça uma sessão nova: um cartão por gerente.
    2. Leia `operacao/docs/operacao.md`, `ambiente.md`, `ferramentas.md` e a lista de `docs/fluxos/`.
    3. Mostre o Backlog e "A fazer" em poucas linhas (cartão pausado aparece em "A fazer"). Pergunte o que será feito (`$ARGUMENTS` pode já trazer). Retomar um pausado: ele volta para "Fazendo", o `Status` volta ao que está em "Onde parou" e o trabalho segue do passo 4 em diante.
@@ -40,16 +40,17 @@ Uma entrevista curta, em no máximo duas rodadas:
 Com as respostas:
 
 1. Crie `operacao/docs/{fluxos,pesquisas,decisoes}/`, `operacao/cartoes/_arquivo/` e `operacao/parametros/`.
-2. Grave `operacao/docs/operacao.md`, `ferramentas.md` (cada ferramenta como `pendente` até ser testada), `.claude/rules/operacao.md` e `operacao/QUADRO.md` com "Próximo ID: 001".
+2. Grave `operacao/docs/operacao.md` (com a linha "Cartões em paralelo: 1"; pergunte se o usuário quer mais de um cartão aberto ao mesmo tempo), `ferramentas.md` (cada ferramenta como `pendente` até ser testada), `.claude/rules/operacao.md` e `operacao/QUADRO.md`.
 3. **Levantamento do ambiente.** Proponha um cartão `#001 Levantamento do ambiente`: o `operador-sub-analista` lê o estado atual (servidor, quadro do Trello, perfis) e o gerente grava `ambiente.md`. Com o ok, siga o passo 3 com esse cartão. Se o ambiente ainda não está acessível, crie `ambiente.md` com o que o usuário contou, marcado "segundo o usuário, não verificado".
 4. Ferramenta `pendente`: siga "Ferramentas" abaixo antes de qualquer cartão que dependa dela.
 
 ## 3. Briefing
 
-1. Crie o cartão: número = "Próximo ID" (ou o do item de Backlog/A fazer que originou); incremente o "Próximo ID". Crie `<cartao>` com `cartao.md` (`Status: briefing`), `entregas/` e `backups/`. No quadro, o cartão vai para "Fazendo" e "Cartão aberto", na "Situação", aponta para ele.
+1. Crie o cartão: número = o do item de Backlog/A fazer que originou, ou um novo de `bash .claude/bin/novo-id.sh` (reserva o número; duas sessões nunca recebem o mesmo). Crie `<cartao>` com `cartao.md` (`Status: briefing` e `Alvos:`), `entregas/` e `backups/`. Se o hook negar (limite de cartões abertos, alvo de outro cartão), mostre o motivo ao usuário e não contorne. No quadro, com Edit, o cartão vai para "Fazendo".
 2. Veja se um fluxo de `docs/fluxos/` serve ("Quando usar"). Se servir, pergunte se usa; grave em `Fluxo:`.
 3. Pergunte só o que mudar o trabalho: o que deve existir no fim, como saber que está pronto (observável), o que fica de fora. Com fluxo, pergunte a "Entrada" que ele pede. O que já está em `ambiente.md` não vira pergunta.
-4. Grave em "Briefing" e mude o `Status` para `análise`.
+4. **Alvos:** o que o cartão vai alterar, em palavras curtas separadas por vírgula (ex.: `postgres`, `journald`, `ufw`, `quadro Aulas do Trello`). `*` quer dizer o ambiente inteiro (reboot, rede, firewall geral). Com cartões em paralelo, o hook nega dois cartões abertos com alvo em comum; se a análise revelar alvo novo, acrescente na linha.
+5. Grave em "Briefing" e mude o `Status` para `análise`.
 
 ## 4. Análise
 

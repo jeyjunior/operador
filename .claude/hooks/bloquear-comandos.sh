@@ -112,6 +112,14 @@ if MOTIVO=$(casa iE "${ESTADO[@]}"); then
   negar_ferramenta "Quadro, docs/ e cartao.md só mudam pela ferramenta de edição (o kit guarda a versão anterior), e parametros/ é do usuário. Comando bloqueado (padrão: $MOTIVO)."
 fi
 if MOTIVO=$(casa iE "${PERGUNTAR[@]}"); then
-  perguntar_ferramenta "Este comando pode trancar o acesso ao servidor ou derrubá-lo (padrão: $MOTIVO). Confirme só se estiver no plano aprovado."
+  OUTROS=""
+  if [ "$(limite_paralelo)" -gt 1 ]; then
+    while IFS='|' read -r pasta alvos dono; do
+      [ -n "$SESSAO" ] && [ "$dono" = "$SESSAO" ] && continue
+      OUTROS="$OUTROS $pasta (${alvos:-sem alvos})"
+    done < <(cartoes_abertos)
+  fi
+  [ -z "$OUTROS" ] || OUTROS=" ATENÇÃO: há outros cartões abertos que este comando também afeta:$OUTROS. Combine com o usuário antes (ou pause os outros)."
+  perguntar_ferramenta "Este comando pode trancar o acesso ao servidor ou derrubá-lo (padrão: $MOTIVO). Confirme só se estiver no plano aprovado.$OUTROS"
 fi
 exit 0

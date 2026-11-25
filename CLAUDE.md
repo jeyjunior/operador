@@ -32,6 +32,7 @@ Root/                       abra o Claude Code sempre aqui
     │   ├── decisoes/       NNN-titulo.md
     │   └── historico.md    versões antigas de "Homologado"
     ├── .versoes/           cópia de cada .md de operacao/ antes de ser alterado (o hook grava)
+    ├── .ids/               números de cartão já reservados (novo-id.sh)
     ├── cartoes/
     │   ├── NNN-titulo/     um cartão = uma tarefa: cartao.md, entregas/, backups/
     │   └── _arquivo/       cartões arquivados (nunca apagados)
@@ -46,7 +47,7 @@ Root/                       abra o Claude Code sempre aqui
 # Cartões
 
 - Um cartão é uma tarefa inteira, com começo, meio e fim ("instalar o AdGuard no servidor" é um cartão, não vários).
-- `#NNN` é único na operação e nunca é reutilizado. O próximo número está em "Próximo ID" do quadro: use e incremente.
+- `#NNN` é único na operação e nunca é reutilizado. Número novo (cartão ou item de Backlog): `bash .claude/bin/novo-id.sh`, que reserva o número para esta sessão.
 - A pasta do cartão é `operacao/cartoes/NNN-titulo/`: título em minúsculas, sem acento, com hífen, até 40 caracteres. Ela é criada quando o cartão vai para "Fazendo" e **nunca é renomeada**: o vínculo é o número.
 - O ID nasce quando o cartão entra no quadro (no Backlog, inclusive). Consulta não gera cartão.
 
@@ -73,7 +74,7 @@ Root/                       abra o Claude Code sempre aqui
 - **`ambiente.md` é a memória do especialista.** Cada alteração registrada em "Alterações" atualiza esse arquivo na hora, marcada `#NNN, em curso`; o `/operador-encerrar` consolida. Antes de perguntar ao usuário algo sobre o ambiente, leia esse arquivo.
 - **Três caminhos:** ciclo (`/operador-iniciar`: briefing, análise, plano aprovado, execução, conferência, `/operador-encerrar`), ciclo curto (cabe numa sessão, sem análise nem decisão) e consulta (só leitura). Na dúvida entre ciclo e curto, pergunte.
 - **Fluxos:** se um fluxo de `docs/fluxos/` serve ao pedido ("Quando usar"), ele substitui a análise, a execução e a conferência padrão. As pausas marcadas com ⏸ são obrigatórias.
-- **Um cartão aberto por vez.** Pedido novo durante um cartão vai para o Backlog. Para trocar de trabalho sem fechar o cartão, `/operador-pausar` o devolve a "A fazer" com "Onde parou" gravado. Ajuste que não muda o "Pronto quando" pode entrar no cartão aberto, registrado em "Briefing" como "Extensão N: <o quê>, aprovada em AAAA-MM-DD". O que muda o "Pronto quando" vira cartão novo.
+- **Cartões abertos: um por vez, ou em paralelo se a operação ligar.** A linha "Cartões em paralelo: N" de `operacao/docs/operacao.md` (sem ela, 1) é o limite; o hook nega o cartão que passa dele. Com N > 1, cada sessão do Claude Code toca **um** cartão (o que ela abriu ou retomou); o cartão é da primeira sessão que o editou, e outra sessão só o pega depois de `bash .claude/bin/liberar-cartao.sh NNN` (no `/operador-pausar`, ou com o ok do usuário quando a sessão dona foi fechada). Cada cartão declara em `Alvos:` o que altera; o hook nega dois cartões abertos com alvo em comum, e `*` (o ambiente inteiro: reboot, rede) conflita com todos. Reboot, firewall e acesso pedem confirmação dizendo quais outros cartões estão abertos. Quadro, `ambiente.md` e `historico.md` mudam só com Edit; a vez de gravar neles é de uma sessão por vez (hook `vez.sh`). Pedido novo além do limite vai para o Backlog; `/operador-pausar` devolve um cartão a "A fazer" com "Onde parou" gravado. Ajuste que não muda o "Pronto quando" pode entrar no cartão aberto, registrado em "Briefing" como "Extensão N: <o quê>, aprovada em AAAA-MM-DD". O que muda o "Pronto quando" vira cartão novo.
 - **Toda ação que altera algo fora de `operacao/`** (servidor, serviço, conta, publicação, arquivo do usuário) segue esta ordem: está no plano aprovado → backup do que vai mudar em `backups/` (ou o motivo de não haver) → executa → registra em "Alterações" do `cartao.md` com o jeito de desfazer. Publicar, enviar mensagem, apagar dados e gastar dinheiro pedem um ok específico do usuário, mesmo com o plano aprovado.
 - **Instalar algo** (pacote, MCP, imagem, script), na máquina local ou no ambiente remoto, segue a regra global de segurança de dependências do usuário, antes de entrar no plano.
 - **Trava negou, pare.** Quando um hook ou permissão nega um comando, não procure outro caminho para o mesmo efeito (`cd` + caminho relativo, outro comando, script): mostre ao usuário o que foi negado e por quê; se for legítimo, ele faz ou ajusta a trava. Trava que barra trabalho legítimo vira "Levar ao kit:" no Backlog.

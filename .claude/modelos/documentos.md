@@ -25,9 +25,7 @@ Só o gerente edita. Uma linha por cartão; o detalhe fica na pasta dele.
 # Quadro
 
 ## Situação
-- Cartão aberto: #NNN — <título> — `operacao/cartoes/NNN-titulo/` (ou "nenhum")
 - Decisões pendentes: <decisão> (ou "nenhuma")
-- Próximo ID: 001
 
 ## Backlog
 - #012 <pedido ou ideia> — <origem, AAAA-MM-DD>
@@ -47,12 +45,16 @@ Só o gerente edita. Uma linha por cartão; o detalhe fica na pasta dele.
 - #007 <título> — `cartoes/007-titulo/`
 ```
 
+- Os cartões abertos são os de "Fazendo" (um, ou até o limite de "Cartões em paralelo"). Número novo vem de `bash .claude/bin/novo-id.sh`; quadro antigo com "Próximo ID" continua valendo como piso e a linha pode sair.
+- Com cartões em paralelo, o quadro muda só com Edit, trecho a trecho (o hook nega Write).
 - O quadro não repete o próximo passo do cartão: ele fica só em "Onde parou" do `cartao.md` (duas cópias se desencontram).
 - **Backlog:** pode virar trabalho. **A fazer:** combinado e ainda não começou, ou pausado (`#NNN <título> — pausado em AAAA-MM-DD: <próximo passo> — cartoes/NNN-titulo/`). **Fazendo:** o cartão aberto. **Feito:** executado; conferido, ou com a conferência dispensada pelo usuário (registrado no cartão). **Homologado:** o usuário validou no uso real.
 - "Homologado" guarda os 3 grupos mais recentes; os anteriores vão para `operacao/docs/historico.md`, no mesmo formato.
 - Cartão cancelado sai do quadro: a pasta vai para `cartoes/_arquivo/` e o motivo fica no `cartao.md`.
 
 ## operacao/docs/operacao.md
+
+"Cartões em paralelo: N" (em "Limites") diz quantos cartões podem ficar abertos ao mesmo tempo, cada um numa sessão do Claude Code. 1 = um por vez (o padrão, também sem a linha). Só o usuário decide mudar.
 
 ```markdown
 # Operação
@@ -71,6 +73,7 @@ Atualizado: AAAA-MM-DD
 ## Limites
 - Custo: <ex.: "só gratuito">
 - Acesso: <o que o Claude pode e não pode tocar>
+- Cartões em paralelo: 1
 
 ## Como o usuário gosta de trabalhar
 - <preferências que valem para todo cartão: tom, formato de relatório, horários, nível de detalhe>
@@ -209,6 +212,7 @@ Criado pelo gerente quando o cartão vai para "Fazendo". Só o gerente edita.
 Status: briefing | análise | plano | aprovado | execução | aguardando-usuario | conferência | pausado | concluído | cancelado
 Aberto: AAAA-MM-DD · Fechado: AAAA-MM-DD · Fluxo: <NN-nome ou "padrão">
 Motores: <conta dos subagentes; modelos padrão ou setup; MCPs que a secundária tem>
+Alvos: <o que este cartão altera, separado por vírgula: postgres, journald, quadro Aulas do Trello; * = o ambiente inteiro>
 
 ## Onde parou
 - Atualizado: AAAA-MM-DD HH:MM

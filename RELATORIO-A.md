@@ -181,3 +181,100 @@ Verificado: `instalar.cmd <pasta> --ver` rodado pelo `cmd` achou o Git Bash e mo
 - As skills novas (`/operador-pausar`, `/operador-cancelar`) não foram exercitadas com um modelo real.
 - Uma linha acrescentada no meio de um `.md` do kit é migrada para `kit-migrado.md` fora do contexto original. O diff completo fica no `REVISAR.md` para o dono decidir.
 - Uma entrada própria idêntica a uma que o kit teve em alguma versão e depois tirou é tratada como do kit (sai). O antigo fica na cópia.
+
+---
+
+## 9. Cartões em paralelo (2026-11-25)
+
+### 9.1 Análise: o que pressupunha um cartão por vez
+
+| Onde | O que dizia ou fazia |
+|---|---|
+| `CLAUDE.md` | "Um cartão aberto por vez. Pedido novo durante um cartão vai para o Backlog." |
+| `modelos/documentos.md`, quadro | "Situação" com "Cartão aberto: #NNN" (singular) e "Próximo ID" editado à mão; "Fazendo: o cartão aberto" |
+| skills `encerrar`, `pausar`, `cancelar`, `ciclo-curto` | `<cartao>` = "o cartão indicado em Cartão aberto"; ciclo curto e iniciar: "com cartão aberto, vai para o Backlog" |
+| `iniciar` | "O quadro tem cartão aberto: retome" (não pergunta qual) e "incremente o Próximo ID" |
+| hooks | nenhuma trava: o "um por vez" era só instrução; duas sessões podiam pegar o mesmo "Próximo ID" e regravar o quadro uma sobre a outra (Write) |
+| `versionar.sh` | já seguro: o nome da cópia leva hora e PID |
+| `ambiente.md`, "Onde parou" | por cartão ("#NNN, em curso"), sem conflito de formato; o risco era só a gravação simultânea |
+| conta secundária | sem efeito: papel não edita quadro nem cartão |
+
+Nas operações (só leitura):
+- **5_GoogleFlow** `cartoes/001-*/cartao.md`: "Não usar a sessão da conta 1 neste cartão ao mesmo tempo, para os dois gerentes não editarem o mesmo arquivo".
+- **2_Servidor**: o #029 foi "pausado pelo usuário na análise, para abrir o #006"; o quadro mostra o #029 em "A fazer" com `Status: análise`.
+- **3_Doc_Space** `cartoes/006-*/cartao.md`: "outra sessão editou a origem durante o passo".
+- Esperando por causa do limite: 6 #007 (curto) atrás do #003; 4_Worker #013 atrás do #011; 5 #002 atrás do #001; 7 #003 atrás do #002.
+
+### 9.2 Modelo escolhido
+
+- **Cenário suportado: (a)**, várias sessões do Claude Code na mesma pasta, **cada uma com um cartão**. O **(b)**, um gerente tocando vários cartões, fica fora: o contexto de um cartão vazaria para o outro e o "um cartão por gerente" (que mantém o gerente descartável) cairia. Subagentes continuam servindo ao cartão da sessão que os disparou.
+- **Ligar e travar:** a linha `- Cartões em paralelo: N` em "Limites" de `operacao/docs/operacao.md`. Sem a linha, ou com 1, é o comportamento de antes, agora com trava de verdade. Fica na pasta da operação, e o instalador não toca. Não criei comando: é uma linha que o dono (ou o gerente, a pedido) muda.
+- **Cada cartão escreve no que é dele.** O que é compartilhado tem uma regra simples cada:
+
+| Problema | Solução |
+|---|---|
+| mesmo número | `bin/novo-id.sh`: parte do maior número já usado (pastas, arquivo, quadro, "Próximo ID" antigo) e reserva com `mkdir operacao/.ids/NNN` (atômico) |
+| limite e abertura simultânea | `proteger-estrutura.sh`, ao criar um `cartao.md`: sob a trava `mkdir .ids/.abrindo`, conta os abertos (status de trabalho, ou pasta reservada), confere alvos e grava `.dono` (sessão e alvos) antes de soltar a trava |
+| qual sessão é dona | `.dono` na pasta do cartão com o `session_id` da primeira sessão que o editou; outra sessão é negada; `bin/liberar-cartao.sh NNN` solta (no `/operador-pausar`, ou com o ok do usuário quando a dona morreu) |
+| interferência | linha `Alvos:` no cartão; o hook nega cartão aberto com alvo em comum com outro aberto; `*` = ambiente inteiro, conflita com todos |
+| ação perigosa com outro cartão aberto | reboot, firewall, `passwd -l` etc. já pediam confirmação; agora a pergunta lista os outros cartões abertos |
+| quadro, `ambiente.md`, `historico.md` | Write negado (só Edit); `hooks/vez.sh` pega a vez no PreToolUse e solta no PostToolUse, então a checagem do Edit ("mudou desde a leitura?") e a gravação acontecem sem outra sessão no meio; vez esquecida vence em 15 s; cópia anterior em `.versoes/` como sempre |
+| `versionar.sh` e git | `versionar.sh` sem mudança (nome com hora+PID); a operação não tem git |
+| atualização | `operacao.md`, `.ids/` e `.dono` ficam em `operacao/`, que o instalador não toca; o `settings.json` novo (com `vez.sh`) entra pela mesclagem |
+
+- O status `aguardando-usuario` conta como aberto: um cartão esperando o usuário ocupa uma vaga. É de propósito, para não esquecer cartão pela metade.
+
+### 9.3 Testes
+
+- `testar-hooks.sh`: **104 ok** (+16).
+  - Travado: o segundo cartão aberto é negado, e com o outro pausado abre.
+  - Paralelo: a sessão 2 não edita o cartão da 1; alvo em comum e `*` são negados; alvos diferentes abrem; o terceiro passa do limite 2; Write no quadro é negado e Edit liberado; liberado, outra sessão assume; reboot avisa os outros cartões; `novo-id` sequencial; a vez só é solta por quem a pegou.
+- `testar-instalar.sh`: **30 ok**. Migração com o kit novo em cópias da 3 e da 7: nada próprio mudou, os 20 `deny` da 7 continuam, o `PostToolUse` entrou, a segunda rodada não muda nada e o `testar-hooks.sh` passa dentro da operação migrada.
+- **Simulação concorrente** (`simular-paralelo.sh` no scratchpad, processos em paralelo chamando os hooks e scripts reais):
+
+    == 1. IDs: 4 sessões reservando 15 números cada, ao mesmo tempo
+       reservados: 60, únicos: 60, faixa: 001–060
+    == 2. Travado (sem a linha = 1): 3 sessões abrindo ao mesmo tempo, 5 rodadas
+       rodada 1: 1 aberto(s), 2 negado(s)
+       rodada 2: 1 aberto(s), 2 negado(s)
+       rodada 3: 1 aberto(s), 2 negado(s)
+       rodada 4: 1 aberto(s), 2 negado(s)
+       rodada 5: 1 aberto(s), 2 negado(s)
+    == 3. Paralelo com limite 2: 4 sessões abrindo ao mesmo tempo, alvos diferentes, 5 rodadas
+       rodada 1: 2 aberto(s), 2 negado(s)
+       rodada 2: 2 aberto(s), 2 negado(s)
+       rodada 3: 2 aberto(s), 2 negado(s)
+       rodada 4: 2 aberto(s), 2 negado(s)
+       rodada 5: 2 aberto(s), 2 negado(s)
+    == 4. Paralelo com limite 5: 2 sessões com o mesmo alvo (postgres) ao mesmo tempo, 5 rodadas
+       rodada 1: 1 aberto(s), 1 negado(s)
+       rodada 2: 1 aberto(s), 1 negado(s)
+       rodada 3: 1 aberto(s), 1 negado(s)
+       rodada 4: 1 aberto(s), 1 negado(s)
+       rodada 5: 1 aberto(s), 1 negado(s)
+       cenário do dono (banco, log de desligamento, DNS): 501-banco 502-log 503-dns 
+       sessão 2 editando o cartão da sessão 1: "permissionDecision": "deny"
+       reboot pedido pela sessão 2: "permissionDecision": "ask", avisa: 501-banco 503-dns 
+    == 5. Quadro e ambiente: 3 sessões gravando 20 linhas cada, ao mesmo tempo
+       Write no quadro com paralelo ligado: "permissionDecision": "deny"
+       quadro (Edit): 60 de 60 linhas; ambiente (Edit): 60 de 60
+       para comparar, gravação sem conferir (o que Write faria): 21 de 60
+
+  Leitura: 60 números reservados, 60 únicos; travado, sempre 1 aberto entre 3 simultâneos; limite 2, sempre 2 entre 4; mesmo alvo, sempre 1 entre 2; cenário do dono (banco, log de desligamento, DNS) com 3 cartões abertos; a sessão 2 negada no cartão da 1; reboot pede confirmação e cita os outros dois cartões; 120 gravações simultâneas no quadro e no ambiente sem nenhuma perdida. Sem a vez, o mesmo teste perdia 19 de 60 com a checagem do Edit e 39 de 60 com regravação cega.
+
+### 9.4 O que não cobre
+
+- **Alvos comparados por palavra:** `postgres` e `postgresql` não conflitam, e duas coisas que se afetam sem nome comum (um cartão mexe no disco, outro no banco que está nele) passam. O briefing pede alvos claros, e `*` existe para o que pega tudo.
+- **Um gerente com vários cartões** (cenário b) não é suportado.
+- **A simulação da seção 5 reproduz a checagem do Edit**, não o Edit do Claude Code. A checagem existe, e este próprio trabalho viu o Edit recusar "File has been modified since read". Mas a ordem exata hook → checagem → gravação dentro do app não foi verificada.
+- **Vez e reserva vencem pelo tempo:** se uma gravação for negada por outro hook depois do `vez.sh pegar`, a vez fica presa até 15 s. Uma pasta reservada cuja gravação foi negada conta como aberta até `liberar-cartao.sh`.
+- **`.dono` só vale com o limite acima de 1.** No modo travado, duas sessões no mesmo cartão continuam dependendo do cuidado do usuário (como antes).
+- **Operações migradas:** cartão com status de trabalho fora de "Fazendo" conta como aberto e trava o modo de um por vez (2_Servidor #029, que está `análise` em "A fazer"). Antes de usar: `/operador-iniciar` → retomar o #029 → `/operador-pausar`.
+
+### 9.5 Como usar
+
+1. Em `operacao/docs/operacao.md`, em "Limites": `- Cartões em paralelo: 3`.
+2. Abra uma sessão do Claude Code na pasta da operação para cada tarefa e rode `/operador-iniciar` em cada uma. Os cartões abertos aparecem; cada sessão abre ou retoma o seu.
+3. No briefing, diga o que o cartão altera (vai para `Alvos:`). Se outro cartão aberto mexe no mesmo alvo, o kit avisa e não abre.
+4. Para fechar uma tarefa sem terminar: `/operador-pausar` (libera para outra sessão retomar). Se uma janela fechou sem pausar e o cartão ficou preso, peça ao gerente: ele mostra o comando `liberar-cartao.sh` e espera o seu ok.
+5. Para voltar a um por vez: `- Cartões em paralelo: 1`.
