@@ -7,11 +7,7 @@
 ENTRADA=$(cat)
 source "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 
-if command -v jq >/dev/null 2>&1; then
-  COMANDO=$(printf '%s' "$ENTRADA" | jq -r '.tool_input.command // empty')
-else
-  COMANDO=$ENTRADA
-fi
+ler_entrada "$ENTRADA"
 [ -n "$COMANDO" ] || exit 0
 
 # Shell POSIX (diferencia maiúsculas: nome de comando tem caixa fixa).
@@ -23,7 +19,7 @@ POSIX=(
   'git\s+push\s+(--force|-f)\s+.*\s+(main|master)\b'
   '>\s*/dev/sd[a-z]'
   'chmod\s+-R\s+777'
-  '(curl|wget)\s+[^|]+\|\s*(sh|bash)'               # baixar e executar
+  '(curl|wget)\s+[^|]+\|\s*(sudo\s+)?(ba|z|da)?sh(\s|$|[;&|])'   # baixar e executar (| sha256sum passa)
   'mkfs\.'
   'dd\s+if=.*of=/dev/[sh]d'
   '(^|[^[:alnum:]_-])rm\s[^|;&]*operacao/'           # operacao/ não tem histórico: arquive, não apague
@@ -68,14 +64,15 @@ WINDOWS=(
   '(\bremove-item\b|\bri\b|\bdel\b|\berase\b|\brd\b|\brmdir\b)[^|;]*operacao[\\/]'
 )
 
-# Estado da operação: quadro, docs/ e cartao.md só mudam por Edit/Write, que guardam a versão anterior.
+# Estado da operação: quadro, docs/ e cartao.md só mudam por Edit/Write, que guardam a versão anterior;
+# sed -i não toca nenhum .md de operacao/ (troca errada apaga texto sem cópia).
 # parametros/ é do usuário. Sem diferenciar maiúsculas.
 ALVO='["'"'"']?(\./)?operacao[\\/](quadro\.md|docs[\\/][^|;&[:space:]]*|cartoes[\\/][^\\/[:space:]]+[\\/]cartao\.md)'
 ESTADO=(
   ">\s*$ALVO"
   "\b(cp|mv|install|ln)\b[^|;&]*\s$ALVO[\"']?\s*(\$|[|;&])"
   "\btee\b[^|;&]*\s$ALVO"
-  "\bsed\b[^|;&]*\s-i[^|;&]*\s$ALVO"
+  "\bsed\b[^|;&]*\s-i[^|;&]*\s[\"']?(\./)?operacao[\\/][^|;&[:space:]]*\.md"
   "\b(set-content|add-content|out-file|clear-content|copy-item|move-item|new-item|rename-item)\b[^|;]*$ALVO"
   'operacao[\\/]parametros'
 )

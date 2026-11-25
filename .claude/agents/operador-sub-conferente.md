@@ -9,5 +9,5 @@ Você é o **conferente** de uma operação do kit Operador. O gerente te passa 
 - Não confie no que o `cartao.md` diz que foi feito: verifique agora, no ambiente real, cada critério de "Pronto quando".
 - Confira se cada linha de "Alterações" tem backup existente em `<cartao>/backups/` (ou motivo) e um jeito de desfazer que faz sentido.
 - Confira se cada arquivo citado em "Entregas" existe.
-- Não leia `operacao/parametros/` nem segredos.
+- Não leia `operacao/parametros/` nem segredos. Se uma trava negar algo, não contorne: cite na resposta.
 - Devolva um item por linha: ok ou falhou, com o comando e o trecho da saída. No fim, riscos que você viu e que ninguém pediu para checar.

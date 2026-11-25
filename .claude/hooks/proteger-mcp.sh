@@ -7,7 +7,8 @@
 ENTRADA=$(cat)
 source "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 
-NOME=$(campo_da_entrada "$ENTRADA" '.tool_name')
+ler_entrada "$ENTRADA"
+NOME=$FERRAMENTA
 [ -n "$NOME" ] || exit 0
 case "$NOME" in
   mcp__ccd_*|mcp__visualize__*|mcp__Claude_Browser__*|mcp__claude-in-chrome__*) exit 0 ;;
@@ -17,7 +18,7 @@ ACAO=$(printf '%s' "${NOME##*__}" | sed 's/\([a-z0-9]\)\([A-Z]\)/\1_\2/g' | tr '
 ESCREVE='(^|_)(send|post|publish|create|update|delete|remove|move|write|upload|reply|forward|archive|trash|edit|modify|cancel|share|invite|comment|add|set|insert|replace|schedule|draft|run|execute)(_|$)'
 [[ "$ACAO" =~ $ESCREVE ]] || exit 0
 
-if eh_subagente "$ENTRADA" && ! eh_executor "$ENTRADA"; then
+if eh_subagente && ! eh_executor; then
   negar_ferramenta "Ferramenta de MCP que escreve ($NOME) é só do executor ou do gerente, com o ok do usuário. Devolva a proposta ao gerente."
 fi
 perguntar_ferramenta "Ferramenta de MCP que escreve ($NOME): confirme só se estiver no plano aprovado e com o seu ok específico."

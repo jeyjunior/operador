@@ -10,23 +10,24 @@
 ENTRADA=$(cat)
 source "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 
-ARQ=$(caminho_da_entrada "$ENTRADA")
+ler_entrada "$ENTRADA"
+ARQ=$ARQ_ENTRADA
 [ -n "$ARQ" ] || exit 0
 REL=$(relativo_a_raiz "$ARQ")
 SUB=""
-eh_subagente "$ENTRADA" && SUB=1
+eh_subagente && SUB=1
 
 if fora_do_root "$REL"; then
   [ -n "$SUB" ] || exit 0
-  eh_executor "$ENTRADA" || negar_ferramenta "Este papel não grava fora da operação ($REL). Grave em $PASTA_OPERACAO/cartoes/<cartão>/entregas/."
-  if [[ "/$(minusculas "$REL")" =~ /(\.claude[^/]*|\.ssh|$PASTA_OPERACAO)/ ]]; then
+  eh_executor || negar_ferramenta "Este papel não grava fora da operação ($REL). Grave em $PASTA_OPERACAO/cartoes/<cartão>/entregas/."
+  if [[ "/${REL,,}" =~ /(\.claude[^/]*|\.ssh|$PASTA_OPERACAO)/ ]]; then
     negar_ferramenta "Subagente não grava em configuração do Claude, em ~/.ssh nem em outra operação ($REL)."
   fi
   exit 0
 fi
 
 if NO_OP=$(dentro_de "$PASTA_OPERACAO" "$REL"); then
-  NO_OP_N=$(minusculas "$NO_OP")
+  NO_OP_N=${NO_OP,,}
   if [[ $NO_OP_N == parametros/* ]]; then
     negar_ferramenta "$PASTA_OPERACAO/parametros/ é do usuário: o Claude não lê nem grava nessa pasta."
   fi
@@ -36,7 +37,7 @@ if NO_OP=$(dentro_de "$PASTA_OPERACAO" "$REL"); then
   exit 0
 fi
 
-case "$(minusculas "$REL")" in
+case "${REL,,}" in
   claude.md|claude.local.md|readme.md|.gitignore|.mcp.json|.claude/*)
     [ -n "$SUB" ] && negar_ferramenta "Subagente não altera o kit ($REL). Devolva a sugestão ao gerente."
     exit 0 ;;

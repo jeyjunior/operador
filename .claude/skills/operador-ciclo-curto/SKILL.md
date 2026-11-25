@@ -20,7 +20,7 @@ Diga em até 5 linhas: o que vai fazer, o que altera, o backup e como desfazer, 
 
 ## 3. Fazer
 
-1. Número: o do item do Backlog que originou, ou o "Próximo ID" (incremente). Se o trabalho altera algo ou gera arquivo, crie `operacao/cartoes/NNN-titulo/` com `cartao.md` (só "Briefing", "Execução", "Alterações" e "Entregas") e as pastas que usar.
+1. Número: o do item do Backlog que originou, ou o "Próximo ID" (incremente). Se o trabalho altera algo ou gera arquivo, crie `operacao/cartoes/NNN-titulo/` com `cartao.md` no modelo de ciclo curto de `.claude/modelos/documentos.md` (`Status: execução` e "Onde parou", para outra sessão retomar se esta cair) e as pastas que usar; enquanto durar, "Cartão aberto" no quadro aponta para ele. No fim, `Status: concluído` e "Cartão aberto" volta a "nenhum".
 2. Faça só o combinado: backup em `backups/` antes de alterar, arquivos de resultado em `entregas/`. Pode fazer você mesmo ou com o `operador-sub-executor`.
 3. Prove: rode a verificação combinada e mostre o trecho da saída.
 

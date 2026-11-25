@@ -26,7 +26,6 @@ Só o gerente edita. Uma linha por cartão; o detalhe fica na pasta dele.
 
 ## Situação
 - Cartão aberto: #NNN — <título> — `operacao/cartoes/NNN-titulo/` (ou "nenhum")
-- Próximo passo: <ex.: aprovar o plano | execução | /operador-encerrar | /operador-iniciar num gerente novo>
 - Decisões pendentes: <decisão> (ou "nenhuma")
 - Próximo ID: 001
 
@@ -48,7 +47,8 @@ Só o gerente edita. Uma linha por cartão; o detalhe fica na pasta dele.
 - #007 <título> — `cartoes/007-titulo/`
 ```
 
-- **Backlog:** pode virar trabalho. **A fazer:** combinado, ainda não começou. **Fazendo:** o cartão aberto. **Feito:** executado; conferido, ou com a conferência dispensada pelo usuário (registrado no cartão). **Homologado:** o usuário validou no uso real.
+- O quadro não repete o próximo passo do cartão: ele fica só em "Onde parou" do `cartao.md` (duas cópias se desencontram).
+- **Backlog:** pode virar trabalho. **A fazer:** combinado e ainda não começou, ou pausado (`#NNN <título> — pausado em AAAA-MM-DD: <próximo passo> — cartoes/NNN-titulo/`). **Fazendo:** o cartão aberto. **Feito:** executado; conferido, ou com a conferência dispensada pelo usuário (registrado no cartão). **Homologado:** o usuário validou no uso real.
 - "Homologado" guarda os 3 grupos mais recentes; os anteriores vão para `operacao/docs/historico.md`, no mesmo formato.
 - Cartão cancelado sai do quadro: a pasta vai para `cartoes/_arquivo/` e o motivo fica no `cartao.md`.
 
@@ -133,7 +133,7 @@ Modelos: padrão | setup
 | Notion | (conector do app) | mcp__claude_ai_Notion__ | <lista das ferramentas que só leem> |
 ```
 
-- "Motores": a tabela de modelos só existe com `Modelos: setup`; com `padrão`, vale a tabela do `/operador-iniciar`.
+- "Motores": a tabela de modelos só existe com `Modelos: setup`; com `padrão`, vale a tabela de `.claude/skills/operador-iniciar/motores.md`.
 - "MCP por conta": o nome de uma ferramenta muda de uma conta para outra (conector do claude.ai vira `mcp__claude_ai_<Nome>__`). "Leitura na secundária" é o que o gerente pode liberar lá: só ferramentas que leem, confirmadas pelo usuário.
 
 ## operacao/docs/fluxos/NN-nome.md
@@ -206,7 +206,7 @@ Criado pelo gerente quando o cartão vai para "Fazendo". Só o gerente edita.
 ```markdown
 # #NNN — <título>
 
-Status: briefing | análise | plano | aprovado | execução | aguardando-usuario | conferência | concluído | cancelado
+Status: briefing | análise | plano | aprovado | execução | aguardando-usuario | conferência | pausado | concluído | cancelado
 Aberto: AAAA-MM-DD · Fechado: AAAA-MM-DD · Fluxo: <NN-nome ou "padrão">
 Motores: <conta dos subagentes; modelos padrão ou setup; MCPs que a secundária tem>
 
@@ -231,7 +231,7 @@ Motores: <conta dos subagentes; modelos padrão ou setup; MCPs que a secundária
 Aprovado pelo usuário: AAAA-MM-DD (ações 1 a N) · AAAA-MM-DD (ação N+1, extensão 1)
 
 ## Execução
-- <o que foi feito, desvios e problemas, com trecho da saída que prova>
+- AAAA-MM-DD <passo ou ação>: <resultado em uma linha> — prova: <trecho curto da saída, ou o arquivo em entregas/ que a guarda>
 
 ## Alterações
 | # | O que mudou | Onde | Backup | Como desfazer |
@@ -250,4 +250,26 @@ Aprovado pelo usuário: AAAA-MM-DD (ações 1 a N) · AAAA-MM-DD (ação N+1, ex
 - <o que surgiu e não cabe aqui> (ou "nada")
 ```
 
-O `Status` diz em que passo o cartão está; "Onde parou" diz o que fazer agora. Um gerente novo, de qualquer conta, lê os dois e continua. `aguardando-usuario` vale enquanto o cartão espera uma resposta ou ação do usuário; com a resposta, volta ao status do passo.
+O `Status` diz em que passo o cartão está; "Onde parou" diz o que fazer agora. Um gerente novo, de qualquer conta, lê os dois e continua. `aguardando-usuario` vale enquanto o cartão espera uma resposta ou ação do usuário; com a resposta, volta ao status do passo. `pausado`: o cartão saiu de "Fazendo" por `/operador-encerrar pausar`; "Onde parou" diz o status ao retomar.
+
+- "Execução" é lida a cada retomada: uma linha por passo ou ação. Saída longa, log e relatório vão para `entregas/` e a linha aponta para o arquivo.
+- Ciclo curto usa o mesmo modelo só com `Status`, "Onde parou", "Briefing", "Execução", "Alterações" e "Entregas".
+
+## operacao/parametros/parametro.json
+
+Se a operação precisar de um arquivo de parâmetros, ele se chama `parametro.json`, fica em `operacao/parametros/` e tem esta forma (quem preenche é o usuário; você não lê nem grava esse arquivo):
+
+```json
+{
+  "<NomeDaEmpresa>": {
+    "ApiKey": "",
+    "ApiSecret": ""
+  },
+  "Banco": {
+    "Senha": ""
+  }
+}
+```
+
+- Um objeto por empresa ou serviço externo, com o nome dela (ex.: `GatewayPagamento`, `ServicoEmail`). `ApiKey` e `ApiSecret` são os nomes padrão; outras propriedades do mesmo serviço entram no mesmo objeto (ex.: `Passphrase`).
+- `Banco` guarda a senha do banco; outras informações de conexão entram no mesmo objeto.

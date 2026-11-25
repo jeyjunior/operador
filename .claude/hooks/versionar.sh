@@ -5,11 +5,12 @@
 ENTRADA=$(cat)
 source "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 
-ARQ=$(caminho_da_entrada "$ENTRADA")
+ler_entrada "$ENTRADA"
+ARQ=$ARQ_ENTRADA
 [ -n "$ARQ" ] || exit 0
 REL=$(relativo_a_raiz "$ARQ")
 NO_OP=$(dentro_de "$PASTA_OPERACAO" "$REL") || exit 0
-case "$(minusculas "$NO_OP")" in
+case "${NO_OP,,}" in
   .versoes/*|parametros/*) exit 0 ;;
   *.md) ;;
   *) exit 0 ;;

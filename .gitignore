@@ -1,5 +1,4 @@
 .claude/settings.local.json
 .claude/rules/*
-!.claude/rules/parametros.md
 .mcp.json
 operacao/

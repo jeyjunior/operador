@@ -9,18 +9,15 @@
 ENTRADA=$(cat)
 source "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 
-ARQ=$(caminho_da_entrada "$ENTRADA")
+ler_entrada "$ENTRADA"
+ARQ=$ARQ_ENTRADA
 [ -n "$ARQ" ] || exit 0
 SEM_JQ=""
-if command -v jq >/dev/null 2>&1; then
-  CONTEUDO=$(printf '%s' "$ENTRADA" | jq -r '.tool_input | (.new_string // .content // ((.edits // []) | map(.new_string // "") | join("\n")))')
-else
-  CONTEUDO=${ENTRADA//\\\"/\"}   # no JSON cru, as aspas do conteúdo chegam como \"
-  SEM_JQ=" (Sem jq, a checagem também olha o texto antigo da edição; instale o jq para ela olhar só o novo.)"
-fi
+command -v jq >/dev/null 2>&1 || SEM_JQ=" (Sem jq, a checagem também olha o texto antigo da edição; instale o jq para ela olhar só o novo.)"
 
 # 1. Locais de sistema do Windows.
-ARQ_N=$(minusculas "${ARQ//\\//}")
+ARQ_N=${ARQ//\\//}
+ARQ_N=${ARQ_N,,}
 SISTEMA=(
   '^[a-z]:/windows/'
   '/system32/'

@@ -1,15 +1,14 @@
 <!--
 OPERADOR: gerente + subagentes para operações (este comentário não é enviado ao Claude)
 Requer o app Claude desktop (aba Code). Este arquivo é só do kit: os dados da operação ficam em
-.claude/rules/operacao.md e em operacao/. Para atualizar o kit, troque este arquivo, .claude/settings.json e as
-pastas skills/, agents/, hooks/, bin/ e modelos/. Permissões da operação ficam em .claude/settings.local.json.
+.claude/rules/ e em operacao/. Para atualizar o kit, rode no clone do kit: bash .claude/bin/atualizar-kit.sh <pasta>.
+Permissões da operação ficam em .claude/settings.local.json.
 
   /operador-iniciar      → entrada única: configura a operação na primeira vez; depois abre um cartão
-                           (ciclo), oferece o ciclo curto ou retoma o cartão aberto
-  /operador-encerrar     → fecha o cartão aberto: ambiente.md, lições, quadro. Também cancela.
+                           (ciclo), oferece o ciclo curto ou retoma o cartão aberto ou pausado
+  /operador-encerrar     → fecha o cartão aberto: ambiente.md, lições, quadro. Também pausa, cancela e homologa.
   /operador-ciclo-curto  → trabalho pequeno numa sessão, direto para "Feito"
   /operador-fluxo        → cria ou ajusta um fluxo (receita de trabalho com papéis e pausas)
-  /operador-homologar    → leva cartões de "Feito" para "Homologado"
   /operador-consultar    → pergunta sobre a operação ou o ambiente, só leitura, em sessão à parte
 -->
 
@@ -58,7 +57,7 @@ Root/                       abra o Claude Code sempre aqui
 - Leitura pesada vai para subagente, que devolve só a conclusão.
 
 **Subagentes** (`.claude/agents/`): `operador-sub-analista` (só leitura: investiga e propõe), `operador-sub-executor` (executa o plano aprovado), `operador-sub-conferente` (só leitura: confere o resultado). Papéis de fluxo são subagentes `general-purpose` com o texto do papel escrito no arquivo do fluxo. Nomes: skill do kit é `operador-<comando>`; subagente novo em `.claude/agents/` é `operador-sub-<papel>`.
-- Todo disparo de subagente, em qualquer skill, segue "Motores: conta e modelos" de `.claude/skills/operador-iniciar/SKILL.md`: conta (principal ou a secundária do Claude Code na CLI), modelo e esforço pelo tipo da tarefa, e checagem de MCP na secundária. O executor e quem escreve por MCP rodam sempre na principal.
+- Todo disparo de subagente, em qualquer skill, segue `.claude/skills/operador-iniciar/motores.md`: conta (principal ou a secundária do Claude Code na CLI), modelo e esforço pelo tipo da tarefa, e checagem de MCP na secundária. O executor e quem escreve por MCP rodam sempre na principal.
 - Recebem do gerente tudo o que precisam no prompt (caminhos dos documentos e do cartão). Não conversam com o usuário: o que fugir do pedido, eles param e devolvem.
 - Gravam só em `entregas/` e `backups/` do cartão. Não editam quadro, `cartao.md` nem `docs/`.
 
@@ -71,9 +70,10 @@ Root/                       abra o Claude Code sempre aqui
 - **`ambiente.md` é a memória do especialista.** Cada alteração registrada em "Alterações" atualiza esse arquivo na hora, marcada `#NNN, em curso`; o `/operador-encerrar` consolida. Antes de perguntar ao usuário algo sobre o ambiente, leia esse arquivo.
 - **Três caminhos:** ciclo (`/operador-iniciar`: briefing, análise, plano aprovado, execução, conferência, `/operador-encerrar`), ciclo curto (cabe numa sessão, sem análise nem decisão) e consulta (só leitura). Na dúvida entre ciclo e curto, pergunte.
 - **Fluxos:** se um fluxo de `docs/fluxos/` serve ao pedido ("Quando usar"), ele substitui a análise, a execução e a conferência padrão. As pausas marcadas com ⏸ são obrigatórias.
-- **Um cartão aberto por vez.** Pedido novo durante um cartão vai para o Backlog. Ajuste que não muda o "Pronto quando" pode entrar no cartão aberto, registrado em "Briefing" como "Extensão N: <o quê>, aprovada em AAAA-MM-DD". O que muda o "Pronto quando" vira cartão novo.
+- **Um cartão aberto por vez.** Pedido novo durante um cartão vai para o Backlog. Para trocar de trabalho sem fechar o cartão, `/operador-encerrar pausar` o devolve a "A fazer" com "Onde parou" gravado. Ajuste que não muda o "Pronto quando" pode entrar no cartão aberto, registrado em "Briefing" como "Extensão N: <o quê>, aprovada em AAAA-MM-DD". O que muda o "Pronto quando" vira cartão novo.
 - **Toda ação que altera algo fora de `operacao/`** (servidor, serviço, conta, publicação, arquivo do usuário) segue esta ordem: está no plano aprovado → backup do que vai mudar em `backups/` (ou o motivo de não haver) → executa → registra em "Alterações" do `cartao.md` com o jeito de desfazer. Publicar, enviar mensagem, apagar dados e gastar dinheiro pedem um ok específico do usuário, mesmo com o plano aprovado.
 - **Instalar algo** (pacote, MCP, imagem, script), na máquina local ou no ambiente remoto, segue a regra global de segurança de dependências do usuário, antes de entrar no plano.
+- **Trava negou, pare.** Quando um hook ou permissão nega um comando, não procure outro caminho para o mesmo efeito (`cd` + caminho relativo, outro comando, script): mostre ao usuário o que foi negado e por quê; se for legítimo, ele faz ou ajusta a trava. Trava que barra trabalho legítimo vira "Levar ao kit:" no Backlog.
 - Não diga que algo está feito ou funcionando sem ter rodado agora o que prova e lido a saída. Cite a evidência.
 - Entre duas interpretações, pergunte. Perguntas ao usuário: no máximo 4 por rodada, numeradas; com poucas alternativas claras, use múltipla escolha.
 - Antes de concordar com uma proposta, sua ou do usuário, aponte um caso concreto em que ela falha e o custo de cada caminho.

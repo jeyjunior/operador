@@ -22,7 +22,7 @@ Sem `operacao/QUADRO.md`, a operação ainda não começou: indique `/operador-i
 
 ## 2. Responder
 
-- **Situação:** "Situação" do quadro e o que está em "Fazendo", em até 10 linhas.
+- **Situação:** "Situação" do quadro, o "Onde parou" do cartão aberto e os pausados em "A fazer", em até 10 linhas.
 - **O que foi feito e por quê:** "Feito" e "Homologado", os `cartao.md`, `docs/decisoes/`, `docs/historico.md`.
 - **Como está o ambiente:** `ambiente.md` primeiro. Se o usuário quer o estado real, verifique com comandos de leitura e diga onde o real difere do `ambiente.md`.
 - **Ideias:** discuta à vontade, apoiado em `operacao.md` e nas decisões. Aponte quando a ideia contraria uma decisão registrada.
