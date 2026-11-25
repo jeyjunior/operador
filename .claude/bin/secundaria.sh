@@ -25,16 +25,16 @@ status() {
 }
 
 # Regras do kit e da operação (settings.local.json) sem "ask" (o modo -p não pergunta: "ask" vira negação),
-# somadas aos hooks globais da principal.
+# somadas aos hooks da operação (settings.local.json) e aos hooks globais da principal.
 regras() {
   local globais='{}' local_op='{}'
   [ -f "$PRINCIPAL/settings.json" ] && globais=$(jq '.hooks // {}' "$PRINCIPAL/settings.json")
-  [ -f "$RAIZ/.claude/settings.local.json" ] && local_op=$(jq '.permissions // {}' "$RAIZ/.claude/settings.local.json")
+  [ -f "$RAIZ/.claude/settings.local.json" ] && local_op=$(jq '{permissions: (.permissions // {}), hooks: (.hooks // {})}' "$RAIZ/.claude/settings.local.json")
   jq -c --argjson g "$globais" --argjson l "$local_op" '
     del(.permissions.ask)
-    | .permissions.deny = ((.permissions.deny // []) + ($l.deny // []))
-    | .permissions.allow = ((.permissions.allow // []) + ($l.allow // []))
-    | .hooks = reduce ($g | keys[]) as $k ((.hooks // {}); .[$k] = ((.[$k] // []) + $g[$k]))
+    | .permissions.deny = ((.permissions.deny // []) + ($l.permissions.deny // []))
+    | .permissions.allow = ((.permissions.allow // []) + ($l.permissions.allow // []))
+    | .hooks = reduce (($l.hooks // {}), $g) as $h ((.hooks // {}); reduce ($h | keys[]) as $k (.; .[$k] = ((.[$k] // []) + $h[$k])))
   ' "$RAIZ/.claude/settings.json"
 }
 

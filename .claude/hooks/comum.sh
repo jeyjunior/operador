@@ -10,6 +10,7 @@ minusculas() { printf '%s' "${1,,}"; }
 # Resolve "." e ".." sem tocar o disco (o arquivo pode ainda não existir). Resultado em NORMALIZADO.
 normalizar() {
   local caminho="${1//\\//}" prefixo="" parte partes=() saida=() IFS=/
+  [[ "$caminho" =~ ^/([A-Za-z])(/|$) ]] && caminho="${BASH_REMATCH[1]}:/${caminho:3}"
   if [[ "$caminho" =~ ^([A-Za-z]:)?/ ]]; then prefixo="${BASH_REMATCH[0]}"; caminho="${caminho:${#prefixo}}"; fi
   read -ra partes <<< "$caminho"
   for parte in "${partes[@]}"; do
@@ -24,7 +25,9 @@ normalizar() {
 
 # Caminho relativo ao Root, sempre com /. No Windows a letra do drive pode variar de caixa.
 relativo_a_raiz() {
-  local arq raiz="${RAIZ%/}"
+  local arq raiz
+  normalizar "$RAIZ"
+  raiz=$NORMALIZADO
   normalizar "$1"
   arq=$NORMALIZADO
   [[ "${arq,,}" == "${raiz,,}"/* ]] && arq="${arq:${#raiz}+1}"
@@ -79,15 +82,22 @@ eh_subagente() { [ "${OPERADOR_PAPEL:-}" = sub ] || [ -n "$AGENTE_ID" ]; }
 eh_executor() { [ "${OPERADOR_PAPEL:-}" != sub ] && [ "$AGENTE_TIPO" = operador-sub-executor ]; }
 
 # Quantos cartões podem ficar abertos ao mesmo tempo: linha "Cartões em paralelo: N" de operacao/docs/operacao.md.
-# Sem a linha, 1 (um por vez).
+# Sem a linha, ou com "não", 1 (um por vez).
 limite_paralelo() {
-  local n
-  n=$(grep -m1 -iE 'cart(õ|o)es em paralelo' "$RAIZ/$PASTA_OPERACAO/docs/operacao.md" 2>/dev/null | grep -oE '[0-9]+' | head -n1)
+  local linha n
+  linha=$(grep -m1 -iE 'cart(õ|o)es em paralelo' "$RAIZ/$PASTA_OPERACAO/docs/operacao.md" 2>/dev/null)
+  [[ $linha =~ :[^0-9[:alpha:]]*([0-9]+) ]] && n=${BASH_REMATCH[1]}
   printf '%s' "${n:-1}"
 }
 
-# Cartões abertos, um por linha: pasta|alvos|dono. Aberto = status de trabalho (sem pausado, concluído nem
-# cancelado), ou pasta reservada por uma sessão que ainda não gravou o cartao.md.
+DONO_MINUTOS=30
+RESERVA_MINUTOS=10
+agora() { printf '%s' "${EPOCHSECONDS:-$(date +%s)}"; }
+
+# Cartões abertos, um por linha: pasta|alvos|sessão dona|minutos desde a última edição da dona.
+# Fechado se começa por pausad, conclu ou cancelad: só ASCII, porque o tolower do gawk e o ${,,} do bash
+# do Git Bash estragam o UTF-8 de "concluído". Aberto = o resto com status, ou pasta reservada há menos de
+# RESERVA_MINUTOS por uma sessão que ainda não gravou o cartao.md.
 cartoes_abertos() {
   local d arquivos=()
   for d in "$RAIZ/$PASTA_OPERACAO"/cartoes/[0-9]*/; do
@@ -95,33 +105,45 @@ cartoes_abertos() {
     [ -f "${d}cartao.md" ] && arquivos+=("${d}cartao.md")
   done
   [ ${#arquivos[@]} -gt 0 ] || return 0
-  awk '
+  awk -v agora="$(agora)" -v reserva="$RESERVA_MINUTOS" '
     { d = FILENAME; sub(/\/[^\/]*$/, "", d); n = FILENAME; sub(/.*\//, "", n); visto[d] = 1; sub(/\r$/, "") }
     n == ".dono" && FNR == 1 { dono[d] = $0 }
-    n == ".dono" && FNR == 2 { reservado[d] = $0 }
+    n == ".dono" && FNR == 2 { quando[d] = $0 + 0 }
+    n == ".dono" && FNR == 3 { reservado[d] = $0 }
     n == "cartao.md" { tem[d] = 1 }
     n == "cartao.md" && !(d in st) && tolower($0) ~ /^status:/ { s = $0; sub(/^[^:]*:[ \t]*/, "", s); sub(/[ \t].*/, "", s); st[d] = tolower(s) }
     n == "cartao.md" && !(d in al) && tolower($0) ~ /^alvos:/ { a = $0; sub(/^[^:]*:[ \t]*/, "", a); al[d] = a }
     END {
       for (d in visto) {
-        aberto = tem[d] ? (st[d] != "" && st[d] !~ /^(pausado|concluído|concluido|cancelado)$/) : (dono[d] != "")
-        if (aberto) { k = split(d, p, "/"); print p[k] "|" ((d in al) ? al[d] : reservado[d]) "|" dono[d] }
+        min = (d in quando) ? int((agora - quando[d]) / 60) : ""
+        aberto = tem[d] ? (st[d] != "" && st[d] !~ /^(pausad|conclu|cancelad)/) : (dono[d] != "" && min != "" && min < reserva)
+        if (aberto) { k = split(d, p, "/"); print p[k] "|" ((d in al) ? al[d] : reservado[d]) "|" dono[d] "|" min }
       }
     }' "${arquivos[@]}"
 }
 
-# alvos_em_comum "a, b" "b, c": imprime o que os dois têm em comum; "*" (o ambiente inteiro) casa com tudo.
+# Um alvo para comparar, em ALVO_N: minúsculas, sem espaços nas pontas, sem crase/aspas e sem barra no fim.
+alvo_normal() {
+  local x=${1,,}
+  x=${x//[\`\"\']/}
+  x="${x#"${x%%[![:space:]]*}"}"; x="${x%"${x##*[![:space:]]}"}"
+  ALVO_N=${x%/}
+}
+
+# alvos_em_comum "a, b" "b, c": imprime o primeiro par em conflito. Conflita: igual, "*" (o ambiente inteiro),
+# ou um começa com o outro e o menor tem 4 letras ou mais (postgres e postgresql, /etc e /etc/fstab).
 alvos_em_comum() {
-  local a b x y
-  IFS=, read -ra a <<< "${1,,}"
-  IFS=, read -ra b <<< "${2,,}"
+  local a b x y curto longo
+  IFS=, read -ra a <<< "$1"
+  IFS=, read -ra b <<< "$2"
   for x in "${a[@]}"; do
-    x=$(printf '%s' "$x" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-    [ -n "$x" ] || continue
+    alvo_normal "$x"; x=$ALVO_N; [ -n "$x" ] || continue
     for y in "${b[@]}"; do
-      y=$(printf '%s' "$y" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-      [ -n "$y" ] || continue
-      if [ "$x" = "$y" ] || [ "$x" = "*" ] || [ "$y" = "*" ]; then printf '%s ' "$x/$y"; return 0; fi
+      alvo_normal "$y"; y=$ALVO_N; [ -n "$y" ] || continue
+      if [ ${#x} -le ${#y} ]; then curto=$x longo=$y; else curto=$y longo=$x; fi
+      if [ "$x" = "*" ] || [ "$y" = "*" ] || [ "$x" = "$y" ] || { [ ${#curto} -ge 4 ] && [[ $longo == "$curto"* ]]; }; then
+        printf '%s' "$x / $y"; return 0
+      fi
     done
   done
   return 1

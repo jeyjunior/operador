@@ -22,7 +22,9 @@ parar() { echo "ERRO: $1" >&2; exit 1; }
 info() { echo "  $1"; }
 
 caminho() {
-  local c="${1#\"}"; c="${c%\"}"; c="${c#\'}"; c="${c%\'}"
+  # Resposta colada ou enviada pelo PowerShell pode chegar com BOM e \r.
+  local c="${1//$'\r'/}"; c="${c#$'\xef\xbb\xbf'}"
+  c="${c#\"}"; c="${c%\"}"; c="${c#\'}"; c="${c%\'}"
   c="${c/#\~/$HOME}"
   if command -v cygpath >/dev/null 2>&1; then cygpath -u "$c"; else printf '%s' "$c"; fi
 }
@@ -258,7 +260,7 @@ principal() {
   if [ $# -eq 0 ]; then
     echo "Operador $VERSAO_NOVA"
     pai="$(caminho "$(perguntar "Pasta onde fica (ou vai ficar) a operação [$(pwd)]:" "$(pwd)")")"
-    nome="$(perguntar "Nome da pasta da operação:")"
+    nome="$(perguntar "Nome da pasta da operação:")"; nome="${nome//$'\r'/}"
     [ -n "$nome" ] || parar "informe o nome da pasta."
     ALVO="${pai%/}/$nome"
   else

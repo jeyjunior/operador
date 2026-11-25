@@ -145,10 +145,10 @@ A skill `operador-midia` (não é comando: o gerente a carrega sozinho quando o 
 | Trava | O que faz |
 |---|---|
 | `hooks/proteger-estrutura.sh` | Nada solto no Root; `parametros/` negado; subagente só grava em `entregas/` e `backups/` do cartão (caminho com `..` resolvido antes). Fora da operação, só o executor grava, e nunca na configuração do Claude, em `~/.ssh` ou em outra operação. |
-| `hooks/bloquear-comandos.sh` | Nega comandos destrutivos (inclusive dentro de `ssh "..."`), apagar em `operacao/`, escrever no quadro, em `docs/` ou em `cartao.md` por shell, tocar em `parametros/` e agendar tarefa no Windows. Pede confirmação para o que pode trancar ou derrubar um servidor (`ufw`, `iptables`, `reboot`, `shutdown`, remover o `openssh`); na conta secundária, nega. |
+| `hooks/bloquear-comandos.sh` | Nega comandos destrutivos (inclusive dentro de `ssh "..."`), apagar em `operacao/`, escrever no quadro, em `docs/` ou em `cartao.md` por shell, tocar em `parametros/` e agendar tarefa no Windows. Pede confirmação para o que pode trancar ou derrubar um servidor (`ufw`, `iptables`, `reboot`, `shutdown`, remover o `openssh`) e, com cartão de outra sessão aberto, para parar ou reiniciar serviço (`systemctl restart`, `docker stop`); na conta secundária, nega. |
 | `hooks/proteger-mcp.sh` | Ferramenta de MCP que escreve (enviar, publicar, criar, mover, apagar): você confirma cada chamada do gerente e do executor; os outros papéis e a conta secundária não usam. |
 | `hooks/versionar.sh` | Guarda a versão anterior de cada `.md` de `operacao/` em `operacao/.versoes/` antes da edição. |
-| `hooks/proteger-estrutura.sh` (cartões) | Nega cartão novo além do limite de "Cartões em paralelo"; com o limite acima de 1, nega editar o cartão de outra sessão, dois cartões abertos com alvo em comum e Write em quadro, `ambiente.md` e `historico.md`. |
+| `hooks/proteger-estrutura.sh` (cartões) | Nega cartão novo (ou pausado voltando) além do limite de "Cartões em paralelo"; com o limite acima de 1, nega editar o cartão que outra sessão editou há menos de 30 minutos e Write em quadro, `ambiente.md` e `historico.md`, e pede confirmação para dois cartões abertos com alvo em comum. |
 | `hooks/vez.sh` | Com cartões em paralelo, uma sessão grava por vez no quadro, `ambiente.md` e `historico.md`. |
 | `hooks/bloquear-segredos.sh` | Nega edição que escreve chave, token ou senha literal. |
 | `hooks/verificar-ambiente.sh` | Ao abrir a sessão: estrutura, `jq`, ferramenta pendente, `.git` copiado por engano. |
@@ -199,14 +199,14 @@ Por padrão a operação tem **um cartão aberto por vez**. Para tocar duas ou m
 Como funciona, com o limite acima de 1:
 
 - **Uma sessão do Claude Code por cartão.** Abra outra janela ou aba na mesma pasta e rode `/operador-iniciar`. Um gerente não toca dois cartões: o contexto de um vazaria para o outro.
-- **Limite:** o hook nega o cartão novo que passa do limite, mesmo com duas sessões abrindo no mesmo instante.
+- **Limite:** o hook nega o cartão novo (ou o pausado que volta ao trabalho) que passa do limite, mesmo com duas sessões abrindo no mesmo instante.
 - **Números:** `bash .claude/bin/novo-id.sh` reserva o próximo `#NNN` (uma pasta em `operacao/.ids/`); duas sessões nunca recebem o mesmo.
-- **Dono:** o cartão é da sessão que o editou primeiro (`.dono` na pasta do cartão). Outra sessão é negada nele. Se a sessão dona foi fechada sem pausar, com o seu ok: `bash .claude/bin/liberar-cartao.sh NNN`. O `/operador-pausar` libera sozinho.
-- **Alvos:** cada cartão diz em `Alvos:` o que altera (`postgres`, `journald`, `*` para o ambiente inteiro). Dois cartões abertos com alvo em comum: o hook nega o segundo.
-- **Ações que afetam tudo** (reboot, firewall, acesso): o pedido de confirmação lista os outros cartões abertos.
+- **Dono:** o cartão é da sessão que o editou por último (`.dono` na pasta do cartão, com a hora). Outra sessão é negada nele enquanto a dona o editou há menos de 30 minutos; depois disso, quem editar assume (a sessão fechada sem pausar não prende o cartão). Para liberar antes, com o seu ok: `bash .claude/bin/liberar-cartao.sh NNN`. O `/operador-pausar` libera sozinho.
+- **Alvos:** cada cartão diz em `Alvos:` o que altera (`postgres`, `journald`, `*` para o ambiente inteiro). Alvo em comum com outro cartão aberto (igual, um começando pelo outro, como `postgres` e `postgresql` ou `/etc` e `/etc/fstab`, ou `*`): o hook pede a sua confirmação, e você decide esperar, pausar um, juntar ou seguir.
+- **Ações que afetam tudo** (reboot, firewall, acesso): o pedido de confirmação lista os outros cartões abertos. Parar ou reiniciar serviço (`systemctl restart`, `service ... stop`, `docker stop`) pede confirmação enquanto outra sessão tem cartão aberto.
 - **Quadro, `ambiente.md` e `historico.md`:** só mudam com Edit, e uma sessão grava por vez (o hook `vez.sh` segura a vez durante a gravação). O Edit recusa quando o arquivo mudou depois da leitura, e a sessão relê. Antes de cada gravação, a versão anterior vai para `operacao/.versoes/`.
 
-Não cobre: dois cartões que mexem em coisas que se afetam sem ter o mesmo nome em `Alvos:` (o hook compara palavras); conta secundária e subagentes continuam valendo para o cartão da sessão que os disparou.
+Não cobre: dois cartões que mexem em coisas que se afetam sem nome parecido em `Alvos:` (o hook compara palavras); uma sessão viva parada há mais de 30 minutos sem editar o cartão perde a vez para quem editar; conta secundária e subagentes continuam valendo para o cartão da sessão que os disparou.
 
 ## Conta secundária (opcional)
 

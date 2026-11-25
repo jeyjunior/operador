@@ -55,6 +55,12 @@ nega_sub    "executor não grava na config do Claude"      "../home/.claude/sett
 nega_sub    "executor não grava em ~/.ssh"                "../home/.ssh/config"
 if TIPO=operador-sub-analista editar "../fora/a.txt" x a1 | grep -q '"deny"'; then ok "analista não grava fora da operação"; else falha "analista não grava fora da operação"; fi
 if OPERADOR_PAPEL=sub editar "../fora/a.txt" | grep -q '"deny"'; then ok "conta secundária não grava fora da operação"; else falha "conta secundária não grava fora da operação"; fi
+if command -v cygpath >/dev/null 2>&1; then
+  KW=$(cygpath -m "$K")
+  D=$(printf '{"agent_id":"a1","tool_input":{"file_path":"%s","content":"x"}}' "$KW/operacao/cartoes/001-x/entregas/a.md" \
+    | CLAUDE_PROJECT_DIR="/${KW:0:1}/${KW:3}" bash "$K/.claude/hooks/$HOOK")
+  if printf '%s' "$D" | grep -q '"deny"'; then falha "Root em /c/ e arquivo em C:/ são o mesmo lugar"; else ok "Root em /c/ e arquivo em C:/ são o mesmo lugar"; fi
+fi
 if printf '{"agent_id":"a1","tool_input":{"notebook_path":"%s","new_source":"x"}}' "$K/operacao/QUADRO.ipynb" \
     | CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/$HOOK" | grep -q '"deny"'; then ok "NotebookEdit passa pela trava"; else falha "NotebookEdit passa pela trava"; fi
 
@@ -162,15 +168,27 @@ rm -rf "$K/operacao/cartoes"
 cartao 101-banco execução postgres
 espera_sessao "travado: segundo cartão aberto é negado"       s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing' deny
 cartao 101-banco pausado postgres
+cartao 110-a concluído x; cartao 111-b Concluído x; cartao 112-c cancelado x
 espera_sessao "travado: com o outro pausado, o cartão novo abre" s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing' ""
+espera_sessao "travado: reserva recente de outra sessão conta"  s3 Write operacao/cartoes/103-x/cartao.md 'Status: briefing' deny
+printf 's2\n%s\n\n' "$(( $(date +%s) - 700 ))" > "$K/operacao/cartoes/102-log/.dono"
+espera_sessao "travado: reserva vencida não conta"              s3 Write operacao/cartoes/103-x/cartao.md 'Status: briefing' ""
+rm -rf "$K/operacao/cartoes/102-log" "$K/operacao/cartoes/103-x" "$K"/operacao/cartoes/11[0-2]-*
+cartao 107-p pausado x
+espera_sessao "travado: pausado voltando ao trabalho respeita o limite" s3 Edit operacao/cartoes/107-p/cartao.md 'Status: execução' ""
+cartao 101-banco execução postgres
+espera_sessao "travado: pausado não volta com outro aberto"     s3 Edit operacao/cartoes/107-p/cartao.md 'Status: execução' deny
+rm -rf "$K/operacao/cartoes/107-p"
 espera_sessao "travado: Write no quadro continua liberado"      s1 Write operacao/QUADRO.md x ""
 
 printf '# Operação\n\n## Limites\n- Cartões em paralelo: 2\n' > "$K/operacao/docs/operacao.md"
 cartao 101-banco execução postgres
 espera_sessao "paralelo: a sessão 1 pega o cartão 101"          s1 Edit operacao/cartoes/101-banco/cartao.md 'Status: execução' ""
 espera_sessao "paralelo: a sessão 2 não edita o cartão da 1"    s2 Edit operacao/cartoes/101-banco/cartao.md 'Status: execução' deny
-espera_sessao "paralelo: alvo em comum é negado"                s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: postgres' deny
-espera_sessao "paralelo: alvo * conflita com tudo"              s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: *' deny
+espera_sessao "paralelo: alvo em comum pede confirmação"        s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: postgres' ask
+espera_sessao "paralelo: alvo * conflita com tudo"              s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: *' ask
+espera_sessao "paralelo: postgresql conflita com postgres"      s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: postgresql' ask
+espera_sessao "paralelo: alvo curto não conflita por começo"    s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: pg' ""
 espera_sessao "paralelo: alvos diferentes abrem o segundo"      s2 Write operacao/cartoes/102-log/cartao.md 'Status: briefing\nAlvos: journald' ""
 cartao 102-log briefing journald
 espera_sessao "paralelo: terceiro cartão passa do limite 2"     s3 Write operacao/cartoes/103-x/cartao.md 'Status: briefing' deny
@@ -181,6 +199,20 @@ bash "$K/.claude/bin/liberar-cartao.sh" 101 >/dev/null
 espera_sessao "paralelo: liberado, outra sessão assume o cartão" s2 Edit operacao/cartoes/101-banco/cartao.md 'Status: execução' ""
 D=$(printf '{"session_id":"s9","tool_input":{"command":"ssh casa sudo reboot"}}' | CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/bloquear-comandos.sh")
 if printf '%s' "$D" | grep -q '"ask"' && printf '%s' "$D" | grep -q '101-banco'; then ok "paralelo: reboot avisa os outros cartões abertos"; else falha "paralelo: reboot avisa os outros cartões abertos"; fi
+D=$(printf '{"session_id":"s9","tool_input":{"command":"ssh casa sudo systemctl restart nginx"}}' | CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/bloquear-comandos.sh")
+if printf '%s' "$D" | grep -q '"ask"' && printf '%s' "$D" | grep -q '101-banco'; then ok "paralelo: restart pergunta com cartão de outra sessão aberto"; else falha "paralelo: restart pergunta com cartão de outra sessão aberto"; fi
+D=$(printf '{"session_id":"s9","tool_input":{"command":"ssh casa systemctl status nginx"}}' | CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/bloquear-comandos.sh" | decisao)
+if [ -z "$D" ]; then ok "paralelo: comando comum não pergunta"; else falha "paralelo: comando comum não pergunta (veio: $D)"; fi
+printf 's2\n%s\npostgres\n' "$(( $(date +%s) - 1900 ))" > "$K/operacao/cartoes/101-banco/.dono"
+espera_sessao "paralelo: dona parada há 30 min, outra sessão assume" s3 Edit operacao/cartoes/101-banco/cartao.md 'Status: execução' ""
+if [ "$(head -n1 "$K/operacao/cartoes/101-banco/.dono")" = s3 ]; then ok "paralelo: quem assume vira a dona"; else falha "paralelo: quem assume vira a dona"; fi
+printf '# Operação\n\n## Limites\n- Cartões em paralelo: 5\n' > "$K/operacao/docs/operacao.md"
+espera_sessao "paralelo: cartão novo com alvo em comum pergunta" s4 Write operacao/cartoes/105-pg/cartao.md 'Status: briefing\nAlvos: postgresql' ask
+cartao 105-pg briefing postgresql
+espera_sessao "paralelo: mesmos alvos não perguntam de novo"    s4 Edit operacao/cartoes/105-pg/cartao.md 'Alvos: postgresql' ""
+espera_sessao "paralelo: alvo novo em comum pergunta"           s4 Edit operacao/cartoes/105-pg/cartao.md 'Alvos: postgresql, journald' ask
+rm -rf "$K/operacao/cartoes/105-pg"
+printf '# Operação\n\n## Limites\n- Cartões em paralelo: 2\n' > "$K/operacao/docs/operacao.md"
 A=$(bash "$K/.claude/bin/novo-id.sh"); B=$(bash "$K/.claude/bin/novo-id.sh")
 if [ "$A" = 103 ] && [ "$B" = 104 ]; then ok "novo-id reserva números seguidos sem repetir"; else falha "novo-id reserva números seguidos sem repetir (veio $A e $B)"; fi
 vez() { printf '{"session_id":"%s","tool_name":"Edit","tool_input":{"file_path":"%s"}}' "$1" "$K/operacao/QUADRO.md" | CLAUDE_PROJECT_DIR="$K" bash "$K/.claude/hooks/vez.sh" "$2"; }
@@ -209,11 +241,12 @@ if command -v jq >/dev/null 2>&1; then
   else
     falha "secundária recebe as travas da operação e a global, sem ask"
   fi
-  echo '{"permissions":{"allow":["Bash(ssh casa *)"],"ask":["Bash(x)"]}}' > "$K/.claude/settings.local.json"
-  if sec regras | jq -e '(.permissions.allow | index("Bash(ssh casa *)")) and (.permissions.ask == null)' >/dev/null; then
-    ok "secundária soma as permissões da operação (settings.local.json)"
+  echo '{"permissions":{"allow":["Bash(ssh casa *)"],"ask":["Bash(x)"]},"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"hook-local"}]}]}}' > "$K/.claude/settings.local.json"
+  if sec regras | jq -e '(.permissions.allow | index("Bash(ssh casa *)")) and (.permissions.ask == null)
+      and ([.hooks.PreToolUse[].hooks[].command] | any(. == "hook-local"))' >/dev/null; then
+    ok "secundária soma as permissões e os hooks da operação (settings.local.json)"
   else
-    falha "secundária soma as permissões da operação (settings.local.json)"
+    falha "secundária soma as permissões e os hooks da operação (settings.local.json)"
   fi
   rm -f "$K/.claude/settings.local.json"
   I=$(sec instrucoes analista)

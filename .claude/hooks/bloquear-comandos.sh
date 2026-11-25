@@ -93,6 +93,13 @@ PERGUNTAR=(
   'apt(-get)?\s+[^|;&]*(remove|purge)\b[^|;&]*openssh'
 )
 
+# Com cartões em paralelo: para ou reinicia algo que o cartão de outra sessão pode estar usando.
+COMPARTILHADO=(
+  '\bsystemctl\s+(restart|stop|reload|try-restart|kill|isolate)\b'
+  '\bservice\s+\S+\s+(restart|stop|reload)\b'
+  '\bdocker\s+(compose\s+)?(restart|stop|down|kill)\b'
+)
+
 # casa OPCOES PADRAO...: imprime o primeiro padrão que casa com o comando. Um grep para o grupo
 # inteiro; só procura qual foi quando algum casou (cada processo custa caro no Windows).
 casa() {
@@ -111,15 +118,25 @@ fi
 if MOTIVO=$(casa iE "${ESTADO[@]}"); then
   negar_ferramenta "Quadro, docs/ e cartao.md só mudam pela ferramenta de edição (o kit guarda a versão anterior), e parametros/ é do usuário. Comando bloqueado (padrão: $MOTIVO)."
 fi
+
+# Cartões abertos que não são desta sessão, com os alvos. Só com cartões em paralelo.
+outros_cartoes() {
+  local pasta alvos dono _
+  [ "$(limite_paralelo)" -gt 1 ] || return 0
+  while IFS='|' read -r pasta alvos dono _; do
+    [ -n "$pasta" ] || continue
+    [ -n "$SESSAO" ] && [ "$dono" = "$SESSAO" ] && continue
+    printf ' %s (alvos: %s);' "$pasta" "${alvos:-não declarados}"
+  done < <(cartoes_abertos)
+}
+
 if MOTIVO=$(casa iE "${PERGUNTAR[@]}"); then
-  OUTROS=""
-  if [ "$(limite_paralelo)" -gt 1 ]; then
-    while IFS='|' read -r pasta alvos dono; do
-      [ -n "$SESSAO" ] && [ "$dono" = "$SESSAO" ] && continue
-      OUTROS="$OUTROS $pasta (${alvos:-sem alvos})"
-    done < <(cartoes_abertos)
-  fi
-  [ -z "$OUTROS" ] || OUTROS=" ATENÇÃO: há outros cartões abertos que este comando também afeta:$OUTROS. Combine com o usuário antes (ou pause os outros)."
+  OUTROS=$(outros_cartoes)
+  [ -z "$OUTROS" ] || OUTROS=" ATENÇÃO: há outros cartões abertos que este comando também afeta:$OUTROS combine com o usuário antes (ou pause os outros)."
   perguntar_ferramenta "Este comando pode trancar o acesso ao servidor ou derrubá-lo (padrão: $MOTIVO). Confirme só se estiver no plano aprovado.$OUTROS"
+fi
+if [[ ${COMANDO,,} =~ (systemctl|service|docker) ]] && MOTIVO=$(casa iE "${COMPARTILHADO[@]}"); then
+  OUTROS=$(outros_cartoes)
+  [ -z "$OUTROS" ] || perguntar_ferramenta "Há cartão aberto em outra sessão:$OUTROS este comando (padrão: $MOTIVO) pode interferir no trabalho dela. Confirme só se não interfere ou se o usuário já combinou."
 fi
 exit 0

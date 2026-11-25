@@ -15,8 +15,8 @@ Esta sessão é o **gerente** (veja "Papéis" no `CLAUDE.md`). Use os modelos de
 
 Antes do primeiro disparo de subagente da sessão (e não antes), leia e siga `.claude/skills/operador-iniciar/motores.md` (conta, modelos e "Disparo de um papel"). Consulta não dispara; cartão retomado com linha `Motores:` não pergunta, mas o disparo segue o mesmo arquivo. Siga o primeiro caso que valer:
 
-1. **Não existe `operacao/QUADRO.md`:** operação nova. Vá ao passo 2.
-2. **Há cartão em "Fazendo" e o limite já foi atingido:** com um só, leia `<cartao>/cartao.md` e retome por "Onde parou" e pelo `Status` (passo 4 em diante). Com mais de um, mostre cada um numa linha (número, título, "Onde parou" e a hora dele) e pergunte qual esta sessão retoma: o de outra sessão ainda aberta não se retoma. Diga de onde está retomando. Pedido novo vai para o Backlog. Se o usuário quer trocar de trabalho antes de terminar, ofereça `/operador-pausar`.
+1. **Não existe `operacao/QUADRO.md`:** operação nova. Leia e siga `.claude/skills/operador-iniciar/montar.md`.
+2. **Há cartão em "Fazendo" e o limite já foi atingido:** com um só, leia `<cartao>/cartao.md` e retome por "Onde parou" e pelo `Status` (passo 4 em diante). Com mais de um, mostre cada um numa linha (número, título, "Onde parou" e a hora dele) e pergunte qual esta sessão retoma: o de outra sessão ainda aberta não se retoma ("Onde parou" atualizado há menos de 30 minutos é sinal de sessão viva; o hook nega editar o cartão dela). Diga de onde está retomando. Ao retomar, se "Execução" passa de umas 40 linhas, mova as linhas antigas para `<cartao>/entregas/execucao-anterior.md` e deixe uma linha apontando o arquivo. Pedido novo vai para o Backlog. Se o usuário quer trocar de trabalho antes de terminar, ofereça `/operador-pausar`.
 3. **Nenhum cartão aberto, ou abaixo do limite:** se há cartões abertos, diga quais (eles são de outras sessões) e siga com um trabalho que não mexa nos alvos deles.
    1. Se esta conversa já fechou ou pausou um cartão, peça uma sessão nova: um cartão por gerente.
    2. Leia `operacao/docs/operacao.md`, `ambiente.md`, `ferramentas.md` e a lista de `docs/fluxos/`.
@@ -26,30 +26,12 @@ Antes do primeiro disparo de subagente da sessão (e não antes), leia e siga `.
       - **Ciclo curto:** cabe nesta sessão, sem análise nem decisão. Siga `.claude/skills/operador-ciclo-curto/SKILL.md`.
       - **Ciclo:** todo o resto. Vá ao passo 3.
 
-## 2. Montar a operação (só na primeira vez)
-
-Uma entrevista curta, em no máximo duas rodadas:
-
-- o que esta operação cuida, para quem e por quê;
-- o ambiente: onde fica, como se acessa (sem pedir senha), o que já existe;
-- as ferramentas que o usuário já usa ou quer usar;
-- limites: custo, o que nunca fazer, o que só ele faz;
-- como ele gosta de trabalhar (formato de relatório, nível de detalhe, tom);
-- se já tem um jeito fixo de trabalhar para algum tipo de pedido (vira fluxo depois, com `/operador-fluxo`).
-
-Com as respostas:
-
-1. Crie `operacao/docs/{fluxos,pesquisas,decisoes}/`, `operacao/cartoes/_arquivo/` e `operacao/parametros/`.
-2. Grave `operacao/docs/operacao.md` (com a linha "Cartões em paralelo: 1"; pergunte se o usuário quer mais de um cartão aberto ao mesmo tempo), `ferramentas.md` (cada ferramenta como `pendente` até ser testada), `.claude/rules/operacao.md` e `operacao/QUADRO.md`.
-3. **Levantamento do ambiente.** Proponha um cartão `#001 Levantamento do ambiente`: o `operador-sub-analista` lê o estado atual (servidor, quadro do Trello, perfis) e o gerente grava `ambiente.md`. Com o ok, siga o passo 3 com esse cartão. Se o ambiente ainda não está acessível, crie `ambiente.md` com o que o usuário contou, marcado "segundo o usuário, não verificado".
-4. Ferramenta `pendente`: siga "Ferramentas" abaixo antes de qualquer cartão que dependa dela.
-
 ## 3. Briefing
 
-1. Crie o cartão: número = o do item de Backlog/A fazer que originou, ou um novo de `bash .claude/bin/novo-id.sh` (reserva o número; duas sessões nunca recebem o mesmo). Crie `<cartao>` com `cartao.md` (`Status: briefing` e `Alvos:`), `entregas/` e `backups/`. Se o hook negar (limite de cartões abertos, alvo de outro cartão), mostre o motivo ao usuário e não contorne. No quadro, com Edit, o cartão vai para "Fazendo".
+1. Crie o cartão: número = o do item de Backlog/A fazer que originou, ou um novo de `bash .claude/bin/novo-id.sh` (reserva o número; duas sessões nunca recebem o mesmo). Crie `<cartao>` com `cartao.md` (`Status: briefing` e `Alvos:`), `entregas/` e `backups/`. Se o hook negar (limite de cartões abertos) ou pedir confirmação (alvo em comum com outro cartão aberto), mostre o motivo ao usuário e não contorne. No quadro, com Edit, o cartão vai para "Fazendo".
 2. Veja se um fluxo de `docs/fluxos/` serve ("Quando usar"). Se servir, pergunte se usa; grave em `Fluxo:`.
 3. Pergunte só o que mudar o trabalho: o que deve existir no fim, como saber que está pronto (observável), o que fica de fora. Com fluxo, pergunte a "Entrada" que ele pede. O que já está em `ambiente.md` não vira pergunta.
-4. **Alvos:** o que o cartão vai alterar, em palavras curtas separadas por vírgula (ex.: `postgres`, `journald`, `ufw`, `quadro Aulas do Trello`). `*` quer dizer o ambiente inteiro (reboot, rede, firewall geral). Com cartões em paralelo, o hook nega dois cartões abertos com alvo em comum; se a análise revelar alvo novo, acrescente na linha.
+4. **Alvos:** o que o cartão vai alterar, em palavras curtas separadas por vírgula (ex.: `postgres`, `journald`, `ufw`, `quadro Aulas do Trello`). `*` quer dizer o ambiente inteiro (reboot, rede, firewall geral). Com cartões em paralelo, alvo em comum com outro cartão aberto (igual, um começando pelo outro, ou `*`) pede a confirmação do usuário; se a análise revelar alvo novo, acrescente na linha.
 5. Grave em "Briefing" e mude o `Status` para `análise`.
 
 ## 4. Análise
@@ -98,5 +80,5 @@ Quando falta uma ferramenta, ou ela está `pendente`:
 
 1. Pesquise as opções (preferindo o que já está instalado e o oficial do serviço), aplicando a regra global de segurança de dependências do usuário a qualquer pacote ou MCP.
 2. Proponha uma ao usuário, com custo e o que ela acessa.
-3. O usuário liga: login no conector, chave em `operacao/parametros/` ou no cofre, `~/.ssh/config`. Alterar `.mcp.json` ou as permissões da operação (`.claude/settings.local.json`), só com o ok dele.
+3. O usuário liga: login no conector, chave em `operacao/parametros/` (formato `parametro.json` de `.claude/modelos/documentos.md`) ou no cofre, `~/.ssh/config`. Alterar `.mcp.json` ou as permissões da operação (`.claude/settings.local.json`), só com o ok dele.
 4. Teste com uma leitura simples e atualize `ferramentas.md` com `ok (testado AAAA-MM-DD)`.
