@@ -250,7 +250,7 @@ Aprovado pelo usuário: AAAA-MM-DD (ações 1 a N) · AAAA-MM-DD (ação N+1, ex
 - <o que surgiu e não cabe aqui> (ou "nada")
 ```
 
-O `Status` diz em que passo o cartão está; "Onde parou" diz o que fazer agora. Um gerente novo, de qualquer conta, lê os dois e continua. `aguardando-usuario` vale enquanto o cartão espera uma resposta ou ação do usuário; com a resposta, volta ao status do passo. `pausado`: o cartão saiu de "Fazendo" por `/operador-encerrar pausar`; "Onde parou" diz o status ao retomar.
+O `Status` diz em que passo o cartão está; "Onde parou" diz o que fazer agora. Um gerente novo, de qualquer conta, lê os dois e continua. `aguardando-usuario` vale enquanto o cartão espera uma resposta ou ação do usuário; com a resposta, volta ao status do passo. `pausado`: o cartão saiu de "Fazendo" por `/operador-pausar`; "Onde parou" diz o status ao retomar.
 
 - "Execução" é lida a cada retomada: uma linha por passo ou ação. Saída longa, log e relatório vão para `entregas/` e a linha aponta para o arquivo.
 - Ciclo curto usa o mesmo modelo só com `Status`, "Onde parou", "Briefing", "Execução", "Alterações" e "Entregas".

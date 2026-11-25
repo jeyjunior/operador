@@ -58,21 +58,21 @@ Conclusão: as duas coisas. O conteúdo próprio está quase todo em `rules/` (c
 
 | # | O quê | Por quê (falha) | Arquivos |
 |---|---|---|---|
-| 1 | **`atualizar-kit.sh`**: instala ou atualiza o kit numa pasta. Sem `--aplicar` só lista o que muda. Troca só o que é do kit (CLAUDE.md, settings.json, hooks, bin, modelos, agentes e skills que existem no kit); mantém `rules/`, `settings.local.json`, `.mcp.json`, `operacao/` e agente/skill próprios; remove o que está em `obsoletos.txt`; move tudo o que sai para `operacao/.versoes/kit-<data>/`; leva permissões próprias do `settings.json` para o `settings.local.json`; avisa hook próprio; grava `.claude/kit-versao.txt`; lista os "Levar ao kit:" do quadro. Idempotente. | 1, 7. Também substitui o `operador-usar` e o comando `rm -rf ... && cp` do README (escalabilidade: N operações atualizadas com um comando cada). | `.claude/bin/atualizar-kit.sh`, `.claude/bin/obsoletos.txt`, `README.md` |
-| 2 | **Pausar cartão**: `/operador-encerrar pausar` grava "Onde parou" com o status ao retomar, `Status: pausado`, e move o cartão para o topo de "A fazer"; o `/operador-iniciar` mostra e retoma. | 2 (5 de 8 operações travadas; a 2 improvisou). | `skills/operador-encerrar/SKILL.md`, `skills/operador-iniciar/SKILL.md`, `modelos/documentos.md`, `CLAUDE.md`, `skills/operador-consultar/SKILL.md` |
+| 1 | **`atualizar-kit.sh`**: instala ou atualiza o kit numa pasta. Sem `--aplicar` só lista o que muda. Troca só o que é do kit (CLAUDE.md, settings.json, hooks, bin, modelos, agentes e skills que existem no kit); mantém `rules/`, `settings.local.json`, `.mcp.json`, `operacao/` e agente/skill próprios; remove o que está em `obsoletos.txt`; move tudo o que sai para `operacao/.versoes/kit-<data>/`; leva permissões próprias do `settings.json` para o `settings.local.json`; avisa hook próprio; grava `.claude/kit-versao.txt`; lista os "Levar ao kit:" do quadro. Idempotente. | 1, 7. Também substitui o `operador-usar` e o comando `rm -rf ... && cp` do README (escalabilidade: N operações atualizadas com um comando cada). | `.claude/bin/atualizar-kit.sh`, `.claude/bin/obsoletos.txt`, `README.md` **Substituído na seção 8 (correções do dono).** |
+| 2 | **Pausar cartão**: `/operador-encerrar pausar` grava "Onde parou" com o status ao retomar, `Status: pausado`, e move o cartão para o topo de "A fazer"; o `/operador-iniciar` mostra e retoma. | 2 (5 de 8 operações travadas; a 2 improvisou). | `skills/operador-encerrar/SKILL.md`, `skills/operador-iniciar/SKILL.md`, `modelos/documentos.md`, `CLAUDE.md`, `skills/operador-consultar/SKILL.md` **Substituído na seção 8 (correções do dono).** |
 | 3 | **Quadro sem "Próximo passo"**: a "Situação" fica com cartão aberto, decisões pendentes e próximo ID; o próximo passo existe só no "Onde parou". | 3 (dois casos de divergência). Menos uma edição por parada. | `modelos/documentos.md`, `skills/operador-encerrar/SKILL.md`, `skills/operador-iniciar/SKILL.md`, `README.md` |
 | 4 | **"Trava negou, pare"** no `CLAUDE.md` e nos três agentes; executor só encerra processo pelo PID que ele iniciou. Trava que barra algo legítimo vira "Levar ao kit:". | 4 (contorno com `cd` + `rm`; 4 processos mortos por nome). | `CLAUDE.md`, `agents/*.md` |
 | 5 | **`sed -i` negado em qualquer `.md` de `operacao/`** (antes só quadro, `docs/`, `cartao.md`). | 5. | `hooks/bloquear-comandos.sh`, teste |
 | 6 | **`curl \| sha256sum` liberado**; `curl \| sh`, `\| sudo bash`, `\| zsh` continuam negados. | 6. | `hooks/bloquear-comandos.sh`, teste |
 | 7 | **Hooks ~2x mais rápidos nas edições**: `comum.sh` lê a entrada com um único `jq` (`ler_entrada`), sem `tr`/subshell para minúsculas nem `shopt` em subshell. Medido (média de 8): `proteger-estrutura` 786 → 293 ms, `bloquear-segredos` 669 → 397 ms, `versionar` 595 → 289 ms; `bloquear-comandos` igual (~570 ms, dominado pelos `grep`). Modo sem `jq` conferido à mão. | 8. | `hooks/comum.sh` e os 5 hooks que o usam |
 | 8 | **Motores fora do `operador-iniciar`**: a seção vai para `skills/operador-iniciar/motores.md`, lida só antes do primeiro disparo. `SKILL.md` do iniciar: 14,7 → 9,2 KB (~1,5 mil tokens a menos em toda sessão que não dispara subagente). | Desempenho; a seção era só para disparo. | `skills/operador-iniciar/SKILL.md`, `skills/operador-iniciar/motores.md`, `CLAUDE.md`, `modelos/documentos.md` |
-| 9 | **`homologar` vira modo do `encerrar`** (`/operador-encerrar homologar`); o encerrar já o chamava por arquivo. 6 → 5 comandos. | Simplificação proposta nas duas rodadas; uma leitura a menos no fechamento. | `skills/operador-encerrar/SKILL.md`, skill `operador-homologar` removida, `obsoletos.txt` |
+| 9 | **`homologar` vira modo do `encerrar`** (`/operador-encerrar homologar`); o encerrar já o chamava por arquivo. 6 → 5 comandos. | Simplificação proposta nas duas rodadas; uma leitura a menos no fechamento. | `skills/operador-encerrar/SKILL.md`, skill `operador-homologar` removida, `obsoletos.txt` **Substituído na seção 8 (correções do dono).** |
 | 10 | **`rules/parametros.md` sai de `rules/`** e vira seção de `modelos/documentos.md` (lido só quando se cria documento). | 1 (arquivo do kit em pasta da operação) e ~700 bytes a menos em toda sessão. | `modelos/documentos.md`, `.gitignore`, `obsoletos.txt` |
 | 11 | **Ciclo curto com `Status` e "Onde parou"**, e "Cartão aberto" aponta para ele enquanto dura. | 9. | `skills/operador-ciclo-curto/SKILL.md`, `modelos/documentos.md` |
 | 12 | **"Execução" com uma linha por passo**; saída longa vai para `entregas/` e a linha aponta o arquivo. | 10. | `modelos/documentos.md` |
 | 13 | README: personalização de modelos/padrões de segredo passa a ser "leve ao kit" (eles são trocados na atualização; o README dizia as duas coisas). | Contradição entre "Atualizar" e "Personalização". | `README.md` |
 
-O que **saiu**: skill `operador-homologar`, `rules/parametros.md`, a dica do `operador-usar` no README. O que **entrou**: `atualizar-kit.sh`, `obsoletos.txt`, `motores.md` (movido, não novo).
+O que **saiu**: skill `operador-homologar`, `rules/parametros.md`, a dica do `operador-usar` no README. O que **entrou**: `atualizar-kit.sh`, `obsoletos.txt`, `motores.md` (movido, não novo). **Substituído na seção 8 (correções do dono).**
 
 ---
 
@@ -93,7 +93,7 @@ Nada foi instalado. Recomendação: nenhuma dependência nova; o kit continua s�
 
 ## 6. Testes
 
-- `bash .claude/bin/testar-hooks.sh`: **93 ok, 0 falha** (eram 84 casos; +4 de comandos: `sed -i` em `entregas/*.md` negado, `sed -n` liberado, `curl | sudo bash` negado, `curl | sha256sum` liberado; +5 do `atualizar-kit.sh`: sem `--aplicar` não altera, troca o kit e mantém `rules/` e `operacao/`, leva permissão própria para o `settings.local.json`, guarda o que saiu em `.versoes/`, recusa pasta dentro do kit). Tempo total 58 s → 50 s com mais casos.
+- `bash .claude/bin/testar-hooks.sh`: **93 ok, 0 falha** (eram 84 casos; +4 de comandos: `sed -i` em `entregas/*.md` negado, `sed -n` liberado, `curl | sudo bash` negado, `curl | sha256sum` liberado; +5 do `atualizar-kit.sh`: sem `--aplicar` não altera, troca o kit e mantém `rules/` e `operacao/`, leva permissão própria para o `settings.local.json`, guarda o que saiu em `.versoes/`, recusa pasta dentro do kit). Tempo total 58 s → 50 s com mais casos. (Depois das correções: 88 nas travas + 30 no `testar-instalar.sh`; ver seção 8.)
 - **Sem `jq`** (PATH filtrado): `proteger-estrutura` nega subagente no quadro, `bloquear-comandos` nega `rm -rf /var/x`, `bloquear-segredos` nega token.
 - **Atualização numa cópia real**: `.claude` + `CLAUDE.md` + `QUADRO.md` da 7_Gmail copiados para o scratchpad. Listou 13 itens a trocar, 2 obsoletos e os 20 `deny` do Gmail; com `--aplicar`, os `deny` foram para o `settings.local.json`, `rules/operacao.md` ficou, o que saiu foi para `operacao/.versoes/kit-2026-11-24-214001/`; segunda rodada: "Kit já está atualizado".
 - **Ciclo mínimo simulado** (pasta nova no scratchpad, cada escrita passando pelos três hooks reais e cada comando pelo `bloquear-comandos`): instalar pelo script → abertura avisa "rode /operador-iniciar" → gerente grava `operacao.md`, `rules/operacao.md`, quadro e cartão → analista grava em `entregas/` → analista negado no `cartao.md`, executor negado no quadro, `sed -i` em `entregas/*.md` negado → pausar (cartão `pausado`, quadro em "A fazer") → retomar e concluir → `mv` para `_arquivo/` liberado, `rm -r` negado → 6 versões guardadas em `.versoes/`.
@@ -101,27 +101,83 @@ Nada foi instalado. Recomendação: nenhuma dependência nova; o kit continua s�
 
 ---
 
-## 7. Como migrar as operações (passo a passo, não executado)
+## 7. Como migrar as operações
 
-Pré-requisito: mesclar `melhoria-a` (ou copiar o clone `operador-a`) e rodar o autoteste.
+Substituído pelo passo a passo da seção 8.
 
-1. Feche todas as sessões abertas nas operações.
-2. No clone do kit: `bash .claude/bin/testar-hooks.sh` (93 ok).
-3. Para cada operação, primeiro só a lista:
-   ```bash
-   bash .claude/bin/atualizar-kit.sh ../../2_Servidor_Linux
-   ```
-   Confira: "muda/novo" só em itens do kit; "sai" só `operador-homologar` e `rules/parametros.md`; a linha de permissões próprias (na 7_Gmail, os 20 `deny`); "ATENÇÃO: hooks próprios" não deve aparecer (se aparecer, passe à mão para o `settings.local.json`).
-4. Aplique: mesma linha com `--aplicar`. Repita para 3, 4, 5, 6, 7, 8. A 9 está vazia: dá para instalar com o mesmo comando quando for usar.
-5. Em cada operação, abra uma sessão e confira a mensagem de abertura (sem aviso de estrutura) e `.claude/kit-versao.txt`.
-6. Arrumar o estado de cada operação (numa sessão normal, com o gerente):
-   - 4_Worker #011 e 8 #008: o quadro tem "Próximo passo" divergente; com o modelo novo, apague a linha "Próximo passo" da "Situação" e confira o "Onde parou" do cartão.
-   - 2_Servidor #029: rode `/operador-iniciar`, escolha retomar o #029 e, se continuar parado, `/operador-encerrar pausar` para gravar `Status: pausado` (hoje está `análise` em "A fazer").
-   - 5 #001, 6 #003, 7 #002: retomar ou `/operador-encerrar pausar` (ou `cancelar`), para liberar "Fazendo".
-   - 3_Doc_Space: `/operador-encerrar homologar` move o 4º grupo de "Homologado" para `historico.md` na próxima homologação.
-   - 2_Servidor `docs/operacao.md`: a lição do `| sha256sum` deixa de ser necessária; as lições sobre hooks viram itens "Levar ao kit:" se ainda incomodarem.
-   - 8_InsaneIA #003 e #005 ("Levar ao kit"): aparecem na saída do script; levar para o `operador-midia` no clone do kit.
-7. O `operador-usar/` deixa de ser necessário (o script instala direto). Pode ficar como está; não é atualizado.
-8. Se algo der errado numa operação: o que saiu está em `operacao/.versoes/kit-<data>/`; copie de volta `CLAUDE.md` e `.claude/` de lá.
+---
 
-Regra para o futuro: mudança no kit → autoteste → `atualizar-kit.sh` em cada operação. O `kit-versao.txt` diz qual operação está atrás.
+## 8. Correções do dono (2026-11-25)
+
+### 8.1 Atualização sempre migra, nunca perde dado
+
+`instalar.sh` (raiz do kit) substitui o `atualizar-kit.sh` e o `obsoletos.txt`. Para cada arquivo do kit na operação, ele calcula o hash git (`git hash-object --path`, que normaliza CRLF) e compara com **todas as versões daquele arquivo em todos os commits do kit** e com a versão atual:
+
+| Situação | Ação |
+|---|---|
+| hash conhecido (versão antiga do kit) | troca pela nova |
+| `settings.json` com hash desconhecido | mescla com `jq`: settings novo do kit + entradas `allow`/`ask`/`deny` que não aparecem em nenhuma versão do kit + hooks cujo comando não aparece em nenhuma versão do kit + chaves de topo e de `permissions` que o kit nunca teve; sem duplicar |
+| `padroes-segredos.txt` com hash desconhecido | arquivo novo + linhas que nenhuma versão do kit teve, num bloco "# Da operação" |
+| outro `.md` do kit com hash desconhecido | troca; as linhas acrescentadas em relação à versão do kit mais parecida vão para `.claude/rules/kit-migrado.md` (carregado em toda sessão), e o diff completo vai para `REVISAR.md` |
+| outro arquivo do kit (script) com hash desconhecido | troca; antigo na cópia e diff em `REVISAR.md` |
+| caminho que já foi do kit e não existe mais (ex.: `rules/parametros.md`) | sai, se não foi editado; em `rules/`, se foi editado, fica como da operação |
+| caminho que nunca foi do kit (rules, skill, agente, hook próprios) | fica intocado |
+
+- **Decisão sobre o `settings.json`:** mesclar no próprio `settings.json`, como o construtor faz. Motivos: o dono pediu "entram no settings novo"; o `settings.local.json` é também onde o app grava as permissões dadas com "sempre permitir", então misturar as duas origens lá dificultaria saber o que é regra da operação; e a detecção pelo histórico separa o que é do kit do que é da operação a cada atualização, sem marcação manual. O `settings.local.json` continua valendo e nunca é tocado.
+- **Cópia antes de trocar:** tudo o que muda ou sai vai para `operacao/.versoes/kit-<data>/` com o mesmo caminho; `REVISAR.md` só aparece quando há edição local que não é `settings.json` nem `padroes-segredos.txt`.
+- **Idempotente:** o conteúdo final de cada arquivo é montado antes numa pasta temporária e comparado (ignorando CRLF) com o da operação; igual não é tocado. A segunda rodada responde "O kit já está atualizado. Nada muda."
+- **Versão:** `.claude/VERSAO` (`2026.11.25`), copiado para a operação, como no construtor.
+- **Requisitos:** `git` (o histórico do clone é a referência; sem `.git`, só a versão atual é reconhecida e o resto vai para revisão) e `jq` só quando o `settings.json` tem conteúdo próprio.
+
+### 8.2 Instalador por `.cmd`
+
+Mesmo padrão do `construtor-equipe-v3` (lido, não alterado): `instalar.cmd` na raiz do kit acha o Git Bash por `git --exec-path` (o `bash` do PATH pode ser o do WSL) e chama `instalar.sh` com os argumentos; termina com `pause`. Se o Git não existir, ou existir sem o Git Bash, a mensagem diz o que instalar e onde (Git for Windows). `.exe` não: o construtor não tem gerador de `.exe` e criar um exigiria instalar ferramenta.
+
+Fluxo: dois cliques → "Pasta onde fica (ou vai ficar) a operação" → "Nome da pasta" → pasta vazia ou inexistente: "Pasta nova", confirma, copia, roda os autotestes e diz o próximo passo (`/operador-iniciar`); pasta com o kit: mostra a versão instalada e a nova, lista cada arquivo (novo, troca, mescla, migra, revisar, sai), os itens "Levar ao kit" do quadro, confirma, aplica, diz onde está a cópia e o `REVISAR.md`, roda os autotestes; pasta com outra coisa: para sem mexer. Sem perguntas: `bash instalar.sh <pasta>` aplica; `bash instalar.sh <pasta> --ver` só mostra. O `.cmd` aceita os mesmos argumentos.
+
+Verificado: `instalar.cmd <pasta> --ver` rodado pelo `cmd` achou o Git Bash e mostrou "Pasta nova..."; modo interativo com respostas pela entrada padrão (criar, depois "Nada muda"); instalação nova com autoteste ("Todas as travas passaram").
+
+### 8.3 Comandos com hífen, sem subcomando por argumento
+
+- `/operador-pausar` e `/operador-cancelar` são skills próprias; `/operador-homologar` voltou a ser skill própria (texto original do `bf44f97`). O `/operador-encerrar` só fecha e indica os outros quando cabe.
+- Comandos finais: `/operador-iniciar`, `/operador-encerrar`, `/operador-pausar`, `/operador-cancelar`, `/operador-homologar`, `/operador-ciclo-curto`, `/operador-fluxo`, `/operador-consultar` (mais a skill `operador-midia`, que não é comando). Argumentos que sobraram são texto livre (o pedido, a pergunta, o nome do fluxo, os números dos cartões), não subcomandos.
+- Revisados: `CLAUDE.md`, `README.md`, skills, modelos e as mensagens do instalador. O `secundaria.sh` mantém `status`/`mcp`/`rodar`: é script interno chamado pelo gerente, não comando do dono.
+
+### 8.4 Testes
+
+- `bash .claude/bin/testar-hooks.sh`: **88 ok, 0 falha** (os 5 casos do updater antigo saíram daqui).
+- `bash testar-instalar.sh` (novo, na raiz do kit): **30 ok, 0 falha**. Monta uma operação com o kit de um commit anterior e acrescenta: rule, skill e hook próprios; linha própria no `CLAUDE.md`; `deny`, hook e chave `env` próprios no `settings.json` (sem um hook que o kit novo tem); linha própria em `padroes-segredos.txt`; `settings.local.json`; quadro com "Levar ao kit". Prova: `--ver` não muda nada; kit trocado; cada item próprio preservado ou migrado; travas novas presentes; sem duplicata; `parametros.md` sai e fica na cópia; `REVISAR.md` gerado; segunda rodada sem nenhum arquivo alterado; recusa pasta com outra coisa e pasta dentro do kit.
+- **Cópia de cada operação real** (2 a 8, sem `operacao/parametros/`), no scratchpad, por `provar-migracao.sh`: retrato SHA-1 de todos os arquivos antes, depois e depois da segunda rodada.
+
+| Operação | Arquivos de kit trocados ou saídos | Sem cópia idêntica | Fora de `CLAUDE.md`/`.claude` mudou | `rules/` + `settings.local.json` mudou | Edição local | 2ª rodada |
+|---|---|---|---|---|---|---|
+| 2_Servidor_Linux | 19 | 0 | 0 | 0 | nenhuma | "Nada muda", 0 arquivos |
+| 3_Doc_Space | 19 | 0 | 0 | 0 | nenhuma | "Nada muda", 0 arquivos |
+| 4_Worker | 19 | 0 | 0 | 0 | nenhuma | "Nada muda", 0 arquivos |
+| 5_GoogleFlow | 18 | 0 | 0 | 0 | nenhuma | "Nada muda", 0 arquivos |
+| 6_ContaModeloInstagram | 19 | 0 | 0 | 0 | nenhuma | "Nada muda", 0 arquivos |
+| 7_Gmail | 19 | 0 | 0 | 0 | `settings.json` mesclado | "Nada muda", 0 arquivos |
+| 8_InsaneIA_Lab | 18 | 0 | 0 | 0 | nenhuma | "Nada muda", 0 arquivos |
+
+- "Sem cópia idêntica": arquivo de `CLAUDE.md`/`.claude` que mudou ou saiu e **não** está byte a byte em `operacao/.versoes/kit-<data>/`. Zero em todas.
+- `rules/parametros.md` saiu em todas (arquivo do kit sem edição) e ficou na cópia; as rules próprias (`operacao.md`, `psql.md`, `notion.md`, `dependencias.md`, `flow.md`) e o `settings.local.json` da 2 ficaram idênticos.
+- 7_Gmail: os 20 `deny` de MCP do Gmail continuam no `settings.json` (diferença para o original: só o `Edit(~/.ssh/**)` novo do kit) e os hooks `proteger-mcp` e `versionar` entraram.
+- Todas as cópias de kit nas operações eram versões conhecidas do kit (hash igual a algum commit), exceto o `settings.json` da 7.
+
+### 8.5 Como migrar as operações (passo a passo, não executado)
+
+1. Mesclar `melhoria-a` na `main` do kit (ou usar o clone `operador-a`).
+2. No clone: `bash .claude/bin/testar-hooks.sh` e `bash testar-instalar.sh`.
+3. Fechar as sessões do Claude Code abertas nas operações.
+4. Para cada operação (2 a 8): dois cliques em `instalar.cmd`, informar `D:\1_Projetos\0_JR\jeyjunior-operador` e o nome da pasta, conferir a lista (esperado: `novo`/`troca`, `sai .claude/rules/parametros.md` e, na 7, `mescla .claude/settings.json`) e confirmar. Ou sem perguntas: `bash instalar.sh ../../7_Gmail --ver` e depois sem `--ver`.
+5. Rodar de novo numa delas: deve responder "O kit já está atualizado. Nada muda."
+6. Arrumar o estado (numa sessão normal): cartões parados em "Fazendo" (5 #001, 6 #003, 7 #002, 8 #008, 4 #011) com `/operador-iniciar` para retomar ou `/operador-pausar`/`/operador-cancelar`; tirar "Próximo passo" da "Situação" dos quadros; a 2 #029 com `/operador-pausar` para gravar `Status: pausado`; levar ao `operador-midia` os itens "Levar ao kit" da 8.
+7. Para desfazer: copiar de volta o conteúdo de `operacao/.versoes/kit-<data>/` da operação.
+8. `operador-usar/` deixa de ser necessário: o instalador cria a operação direto do clone.
+
+### 8.6 Pendências
+
+- O modo interativo foi testado com respostas pela entrada padrão; a janela do `instalar.cmd` com dois cliques e digitação real não foi testada (ela roda o mesmo `instalar.sh`, já provado pelo `cmd` com argumentos).
+- As skills novas (`/operador-pausar`, `/operador-cancelar`) não foram exercitadas com um modelo real.
+- Uma linha acrescentada no meio de um `.md` do kit é migrada para `kit-migrado.md` fora do contexto original. O diff completo fica no `REVISAR.md` para o dono decidir.
+- Uma entrada própria idêntica a uma que o kit teve em alguma versão e depois tirou é tratada como do kit (sai). O antigo fica na cópia.

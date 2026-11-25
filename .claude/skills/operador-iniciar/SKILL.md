@@ -16,7 +16,7 @@ Esta sessão é o **gerente** (veja "Papéis" no `CLAUDE.md`). Use os modelos de
 Antes do primeiro disparo de subagente da sessão (e não antes), leia e siga `.claude/skills/operador-iniciar/motores.md` (conta, modelos e "Disparo de um papel"). Consulta não dispara; cartão retomado com linha `Motores:` não pergunta, mas o disparo segue o mesmo arquivo. Siga o primeiro caso que valer:
 
 1. **Não existe `operacao/QUADRO.md`:** operação nova. Vá ao passo 2.
-2. **O quadro tem cartão aberto:** leia `<cartao>/cartao.md` e retome por "Onde parou" e pelo `Status` (passo 4 em diante). Diga de onde está retomando. Pedido novo vai para o Backlog. Se o usuário quer trocar de trabalho antes de terminar este, ofereça `/operador-encerrar pausar`.
+2. **O quadro tem cartão aberto:** leia `<cartao>/cartao.md` e retome por "Onde parou" e pelo `Status` (passo 4 em diante). Diga de onde está retomando. Pedido novo vai para o Backlog. Se o usuário quer trocar de trabalho antes de terminar este, ofereça `/operador-pausar`.
 3. **Nenhum cartão aberto:**
    1. Se esta conversa já fechou ou pausou um cartão, peça uma sessão nova: um cartão por gerente.
    2. Leia `operacao/docs/operacao.md`, `ambiente.md`, `ferramentas.md` e a lista de `docs/fluxos/`.

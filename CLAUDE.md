@@ -1,12 +1,15 @@
 <!--
 OPERADOR: gerente + subagentes para operações (este comentário não é enviado ao Claude)
 Requer o app Claude desktop (aba Code). Este arquivo é só do kit: os dados da operação ficam em
-.claude/rules/ e em operacao/. Para atualizar o kit, rode no clone do kit: bash .claude/bin/atualizar-kit.sh <pasta>.
-Permissões da operação ficam em .claude/settings.local.json.
+.claude/rules/ e em operacao/. Para criar ou atualizar uma operação, rode instalar.cmd (ou bash instalar.sh) no clone do kit.
+Permissões próprias da operação: .claude/settings.json (o instalador mescla) ou .claude/settings.local.json.
 
   /operador-iniciar      → entrada única: configura a operação na primeira vez; depois abre um cartão
                            (ciclo), oferece o ciclo curto ou retoma o cartão aberto ou pausado
-  /operador-encerrar     → fecha o cartão aberto: ambiente.md, lições, quadro. Também pausa, cancela e homologa.
+  /operador-encerrar     → fecha o cartão aberto: ambiente.md, lições, quadro
+  /operador-pausar       → tira o cartão aberto de "Fazendo" sem fechar; volta a "A fazer" com "Onde parou"
+  /operador-cancelar     → desiste do cartão aberto e arquiva a pasta (nunca apaga)
+  /operador-homologar    → leva cartões de "Feito" para "Homologado"
   /operador-ciclo-curto  → trabalho pequeno numa sessão, direto para "Feito"
   /operador-fluxo        → cria ou ajusta um fluxo (receita de trabalho com papéis e pausas)
   /operador-consultar    → pergunta sobre a operação ou o ambiente, só leitura, em sessão à parte
@@ -70,7 +73,7 @@ Root/                       abra o Claude Code sempre aqui
 - **`ambiente.md` é a memória do especialista.** Cada alteração registrada em "Alterações" atualiza esse arquivo na hora, marcada `#NNN, em curso`; o `/operador-encerrar` consolida. Antes de perguntar ao usuário algo sobre o ambiente, leia esse arquivo.
 - **Três caminhos:** ciclo (`/operador-iniciar`: briefing, análise, plano aprovado, execução, conferência, `/operador-encerrar`), ciclo curto (cabe numa sessão, sem análise nem decisão) e consulta (só leitura). Na dúvida entre ciclo e curto, pergunte.
 - **Fluxos:** se um fluxo de `docs/fluxos/` serve ao pedido ("Quando usar"), ele substitui a análise, a execução e a conferência padrão. As pausas marcadas com ⏸ são obrigatórias.
-- **Um cartão aberto por vez.** Pedido novo durante um cartão vai para o Backlog. Para trocar de trabalho sem fechar o cartão, `/operador-encerrar pausar` o devolve a "A fazer" com "Onde parou" gravado. Ajuste que não muda o "Pronto quando" pode entrar no cartão aberto, registrado em "Briefing" como "Extensão N: <o quê>, aprovada em AAAA-MM-DD". O que muda o "Pronto quando" vira cartão novo.
+- **Um cartão aberto por vez.** Pedido novo durante um cartão vai para o Backlog. Para trocar de trabalho sem fechar o cartão, `/operador-pausar` o devolve a "A fazer" com "Onde parou" gravado. Ajuste que não muda o "Pronto quando" pode entrar no cartão aberto, registrado em "Briefing" como "Extensão N: <o quê>, aprovada em AAAA-MM-DD". O que muda o "Pronto quando" vira cartão novo.
 - **Toda ação que altera algo fora de `operacao/`** (servidor, serviço, conta, publicação, arquivo do usuário) segue esta ordem: está no plano aprovado → backup do que vai mudar em `backups/` (ou o motivo de não haver) → executa → registra em "Alterações" do `cartao.md` com o jeito de desfazer. Publicar, enviar mensagem, apagar dados e gastar dinheiro pedem um ok específico do usuário, mesmo com o plano aprovado.
 - **Instalar algo** (pacote, MCP, imagem, script), na máquina local ou no ambiente remoto, segue a regra global de segurança de dependências do usuário, antes de entrar no plano.
 - **Trava negou, pare.** Quando um hook ou permissão nega um comando, não procure outro caminho para o mesmo efeito (`cd` + caminho relativo, outro comando, script): mostre ao usuário o que foi negado e por quê; se for legítimo, ele faz ou ajusta a trava. Trava que barra trabalho legítimo vira "Levar ao kit:" no Backlog.

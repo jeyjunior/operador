@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Autoteste das travas do kit e do atualizar-kit.sh, numa pasta temporária. Os segredos de teste são fictícios e montados
+# Autoteste das travas do kit, numa pasta temporária. Os segredos de teste são fictícios e montados
 # por partes, para a própria trava de segredos não barrar este arquivo.
 # Uso: bash .claude/bin/testar-hooks.sh
 
@@ -182,34 +182,6 @@ if command -v jq >/dev/null 2>&1; then
   fi
   if sec rodar executor </dev/null 2>/dev/null; then falha "executor não roda na secundária"; else ok "executor não roda na secundária"; fi
 
-  O="$BASE/op"
-  mkdir -p "$O/.claude/rules" "$O/.claude/skills/operador-homologar" "$O/.claude/hooks" "$O/operacao"
-  echo 'REGRA-DA-OPERACAO' > "$O/.claude/rules/operacao.md"
-  echo 'antiga' > "$O/.claude/rules/parametros.md"
-  echo 'hook-antigo' > "$O/.claude/hooks/comum.sh"
-  echo 'QUADRO-DA-OPERACAO' > "$O/operacao/QUADRO.md"
-  jq '.permissions.deny += ["mcp__gmail__send_message"]' "$KIT/.claude/settings.json" > "$O/.claude/settings.json"
-  bash "$KIT/.claude/bin/atualizar-kit.sh" "$O" >/dev/null
-  if grep -q hook-antigo "$O/.claude/hooks/comum.sh"; then ok "atualizar-kit sem --aplicar não altera nada"; else falha "atualizar-kit sem --aplicar não altera nada"; fi
-  bash "$KIT/.claude/bin/atualizar-kit.sh" "$O" --aplicar >/dev/null
-  if diff -q "$KIT/.claude/hooks/comum.sh" "$O/.claude/hooks/comum.sh" >/dev/null && grep -q REGRA-DA-OPERACAO "$O/.claude/rules/operacao.md" \
-      && grep -q QUADRO-DA-OPERACAO "$O/operacao/QUADRO.md"; then
-    ok "atualizar-kit troca o kit e mantém rules e operacao/"
-  else
-    falha "atualizar-kit troca o kit e mantém rules e operacao/"
-  fi
-  if jq -e '.permissions.deny | index("mcp__gmail__send_message")' "$O/.claude/settings.local.json" >/dev/null 2>&1; then
-    ok "atualizar-kit leva a permissão própria para o settings.local.json"
-  else
-    falha "atualizar-kit leva a permissão própria para o settings.local.json"
-  fi
-  if [ ! -e "$O/.claude/rules/parametros.md" ] && ls "$O"/operacao/.versoes/kit-*/.claude/hooks/comum.sh >/dev/null 2>&1 \
-      && ls -d "$O"/operacao/.versoes/kit-*/.claude/skills/operador-homologar >/dev/null 2>&1; then
-    ok "atualizar-kit guarda o que saiu em operacao/.versoes/"
-  else
-    falha "atualizar-kit guarda o que saiu em operacao/.versoes/"
-  fi
-  if bash "$KIT/.claude/bin/atualizar-kit.sh" "$KIT/.claude" --aplicar >/dev/null 2>&1; then falha "atualizar-kit recusa pasta dentro do kit"; else ok "atualizar-kit recusa pasta dentro do kit"; fi
 fi
 
 echo

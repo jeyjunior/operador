@@ -1,2 +1,0 @@
-.claude/skills/operador-homologar
-.claude/rules/parametros.md

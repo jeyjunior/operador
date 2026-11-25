@@ -69,7 +69,10 @@ Um cartão é **uma tarefa inteira**, com começo, meio e fim. "Instalar o AdGua
 | Comando | Para quê |
 |---|---|
 | `/operador-iniciar` | Entrada única. Na primeira vez, entrevista você e monta a operação. Depois, retoma o cartão aberto ou abre um novo. |
-| `/operador-encerrar` | Fecha o cartão: atualiza `ambiente.md`, registra lições e move para "Feito". Com `pausar`, volta para "A fazer" sem fechar; com `cancelar`, arquiva sem concluir; com `homologar`, leva cartões de "Feito" para "Homologado". |
+| `/operador-encerrar` | Fecha o cartão: atualiza `ambiente.md`, registra lições e move para "Feito". |
+| `/operador-pausar` | Tira o cartão aberto de "Fazendo" sem fechar: volta para "A fazer" com "Onde parou" gravado. |
+| `/operador-cancelar` | Desiste do cartão aberto: pergunta o que desfazer e arquiva a pasta (nada é apagado). |
+| `/operador-homologar` | Leva cartões de "Feito" para "Homologado". |
 | `/operador-ciclo-curto` | Trabalho pequeno, sem análise nem decisão, numa sessão só. |
 | `/operador-consultar` | Pergunta sobre a operação ou o ambiente, numa sessão à parte. Só lê. |
 | `/operador-fluxo` | Cria ou ajusta um fluxo (receita de trabalho). |
@@ -86,7 +89,7 @@ Um cartão é **uma tarefa inteira**, com começo, meio e fim. "Instalar o AdGua
 /operador-encerrar ....... ambiente.md, lições, quadro; fecha a sessão
 ```
 
-Um gerente por cartão: para o próximo trabalho, abra uma sessão nova e rode `/operador-iniciar` de novo. Se o contexto ficar pesado no meio, feche e abra outra sessão: ela continua pelo "Onde parou" do `cartao.md`. Para trocar de trabalho sem terminar o cartão, `/operador-encerrar pausar`.
+Um gerente por cartão: para o próximo trabalho, abra uma sessão nova e rode `/operador-iniciar` de novo. Se o contexto ficar pesado no meio, feche e abra outra sessão: ela continua pelo "Onde parou" do `cartao.md`. Para trocar de trabalho sem terminar o cartão, `/operador-pausar`.
 
 Exemplo de pedido rápido: "qual a versão do kernel do servidor?" não abre cartão. O próprio `/operador-iniciar` responde como consulta, ou você usa `/operador-consultar`.
 
@@ -161,16 +164,21 @@ Limites conhecidos: as travas pegam o óbvio, não tudo. O "só leitura" do anal
 
 ## Instalação
 
-O kit é uma **pasta modelo**. Para criar uma operação, rode de dentro do clone do kit:
+O kit é uma **pasta modelo**. No Windows, dê dois cliques em `instalar.cmd` (abre o `instalar.sh` no Git Bash). Em qualquer sistema: `bash instalar.sh`.
 
-```bash
-bash .claude/bin/atualizar-kit.sh ../servidor-linux            # mostra o que vai copiar
-bash .claude/bin/atualizar-kit.sh ../servidor-linux --aplicar  # copia CLAUDE.md e .claude/ do kit
-```
+O instalador pergunta a pasta onde fica (ou vai ficar) a operação e o nome dela, e segue pelo que encontrar:
 
-Depois abra uma sessão Code nessa pasta e rode `/operador-iniciar`. Na primeira vez ele pergunta o que é a operação, como se acessa o ambiente, que ferramentas você usa e o que nunca fazer. Depois sugere um primeiro cartão de levantamento do ambiente.
+| A pasta | O que ele faz |
+|---|---|
+| Não existe ou está vazia | Mostra que é uma operação nova, pede confirmação e copia `CLAUDE.md` e `.claude/`. |
+| Já tem o kit | Mostra o que muda, pede confirmação e atualiza (veja "Atualizar o kit numa operação"). |
+| Tem outra coisa | Para sem mexer. |
 
-O script nunca copia o `README.md`, o `.git`, o `.gitignore` nem o `settings.local.json` do clone.
+Depois de criar, abra o Claude Code (aba Code) na pasta e rode `/operador-iniciar`. Na primeira vez ele pergunta o que é a operação, como se acessa o ambiente, que ferramentas você usa e o que nunca fazer, e sugere um primeiro cartão de levantamento do ambiente.
+
+Sem perguntas: `bash instalar.sh <pasta>` aplica direto; `bash instalar.sh <pasta> --ver` só mostra o que mudaria. O instalador nunca copia o `README.md`, o `.git` nem o `settings.local.json` do clone.
+
+Se o `instalar.cmd` disser que não achou o Git: instale o Git for Windows (https://git-scm.com/download/win), que traz o Git Bash, e rode de novo. O `.cmd` procura o Git Bash pelo próprio `git` (`git --exec-path`), porque o `bash` que o Windows acha primeiro pode ser o do WSL.
 
 ## Ferramentas
 
@@ -215,31 +223,37 @@ Na secundária, o papel roda com as travas da operação e só grava em `entrega
 
 ## Atualizar o kit numa operação
 
-O mesmo script atualiza uma operação existente (feche antes as sessões abertas nela):
+Feche as sessões do Claude Code da operação e rode o instalador apontando para a pasta dela. Ele compara cada arquivo do kit na operação com **todas as versões do kit no histórico git** do clone e decide:
 
-```bash
-bash .claude/bin/testar-hooks.sh
-bash .claude/bin/atualizar-kit.sh ../servidor-linux            # lista o que muda, sem alterar
-bash .claude/bin/atualizar-kit.sh ../servidor-linux --aplicar
-```
+| O arquivo na operação | O que acontece |
+|---|---|
+| É uma versão do kit (atual ou antiga) | Troca pela versão nova. |
+| `settings.json` com conteúdo próprio | **Mescla:** o `settings.json` novo do kit mais as permissões (`allow`, `ask`, `deny`), os hooks e as chaves que a operação acrescentou, sem duplicar. |
+| `padroes-segredos.txt` com linhas próprias | Mescla: o arquivo novo mais as linhas da operação, num bloco "# Da operação". |
+| Outro `.md` do kit editado na operação | Troca pela versão nova; o texto que a operação acrescentou vai para `.claude/rules/kit-migrado.md` (carregado em toda sessão) para você revisar. |
+| Outro arquivo do kit editado (script) | Troca pela versão nova; a diferença fica em `REVISAR.md` na cópia. |
+| Arquivo que o kit não tem mais | Sai (fica na cópia). |
+| Arquivo próprio (rules, skill ou agente com outro nome, hook seu) | Fica como está. |
 
-- **É do kit e é trocado:** `CLAUDE.md`, `.claude/settings.json`, `hooks/`, `bin/`, `modelos/`, os agentes e as skills que existem no kit. Arquivo que o kit deixou de ter (lista em `.claude/bin/obsoletos.txt`) sai.
-- **É da operação e fica:** `.claude/rules/`, `.claude/settings.local.json`, `.mcp.json`, `operacao/`, e agente ou skill próprios com outro nome.
-- **Nada se perde:** o que é trocado ou sai vai antes para `operacao/.versoes/kit-<data>/`.
-- **Permissões postas no `settings.json`** da operação (o que não existe no do kit) passam sozinhas para o `settings.local.json`. Hook próprio no `settings.json` só é avisado: passe à mão.
-- O script grava `.claude/kit-versao.txt` (commit e ramo do kit) e lista os itens "Levar ao kit:" do quadro da operação, para virarem melhoria aqui.
+- **Nada se perde:** tudo o que muda ou sai é copiado antes para `operacao/.versoes/kit-<data>/`. Se houver edição local, `REVISAR.md` nessa pasta mostra a diferença para a versão do kit mais parecida.
+- **Rodar de novo não muda nada.** A versão instalada fica em `.claude/VERSAO`.
+- Não toca em `.claude/rules/` (só tira um arquivo do kit que saiu e não foi editado), `settings.local.json`, `.mcp.json` nem `operacao/` (só cria `.versoes/kit-<data>/`).
+- Lista os itens "Levar ao kit:" do quadro da operação, para virarem melhoria aqui.
+- No fim, roda os autotestes do kit na operação.
+- Precisa do `git` (o reconhecimento das versões usa o histórico do clone; sem o `.git`, só a versão atual é reconhecida e o resto vai para revisão) e do `jq` quando o `settings.json` tem conteúdo próprio.
 
 ## Personalização
 
-- **`.claude/settings.local.json`**: permissões da operação, somadas às do kit (inclusive na conta secundária). Uma operação de servidor pode liberar `ssh` sem confirmação: `{"permissions": {"allow": ["Bash(ssh casa *)"]}}`. Não edite o `settings.json`: ele é do kit e é trocado na atualização.
+- **Permissões e hooks da operação**: no `.claude/settings.json` (a atualização mescla e preserva) ou no `.claude/settings.local.json` (nunca é tocado). Os dois somam às regras do kit, inclusive na conta secundária. Uma operação de servidor pode liberar `ssh` sem confirmação: `{"permissions": {"allow": ["Bash(ssh casa *)"]}}`.
 - **`.claude/rules/`**: regras da operação (o `operacao.md` é criado pelo `/operador-iniciar`).
-- Modelos (`.claude/modelos/`), padrões de segredo (`.claude/hooks/padroes-segredos.txt`), skills e agentes do kit são trocados na atualização: mudança neles se faz no clone do kit e chega a todas as operações. Na operação, anote "Levar ao kit: <o quê>" no Backlog.
+- Modelos, skills e agentes do kit: prefira mudar no clone do kit (chega a todas as operações) e, na operação, anotar "Levar ao kit: <o quê>" no Backlog. Se editar na própria operação, a atualização não perde o texto: ele vai para `.claude/rules/kit-migrado.md` e para a cópia.
 - **Nomes**: skills do kit usam `operador-<comando>`; subagentes, `operador-sub-<papel>`. Isso evita conflito com skills de outros projetos.
 
 ## Testes do kit
 
 ```bash
-bash .claude/bin/testar-hooks.sh
+bash .claude/bin/testar-hooks.sh   # as travas (roda também dentro de uma operação)
+bash testar-instalar.sh            # o instalador (só no clone do kit)
 ```
 
-Testa as travas e o `atualizar-kit.sh` numa pasta temporária, sem tocar no kit nem numa operação real.
+Rodam numa pasta temporária, sem tocar no kit nem numa operação real.
