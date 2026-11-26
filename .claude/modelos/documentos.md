@@ -1,6 +1,6 @@
 # Modelos de documentos
 
-Tudo fica em `operacao/`, sem histórico. Mantenha cada documento curto e em português.
+Tudo fica em `operacao/`, sem git (o hook guarda a versão anterior de cada `.md` em `operacao/.versoes/`). Mantenha cada documento curto e em português.
 
 ## .claude/rules/operacao.md
 
@@ -25,10 +25,7 @@ Só o gerente edita. Uma linha por cartão; o detalhe fica na pasta dele.
 # Quadro
 
 ## Situação
-- Cartão aberto: #NNN — <título> — `operacao/cartoes/NNN-titulo/` (ou "nenhum")
-- Próximo passo: <ex.: aprovar o plano | execução | /operador-encerrar | /operador-iniciar num gerente novo>
 - Decisões pendentes: <decisão> (ou "nenhuma")
-- Próximo ID: 001
 
 ## Backlog
 - #012 <pedido ou ideia> — <origem, AAAA-MM-DD>
@@ -48,11 +45,17 @@ Só o gerente edita. Uma linha por cartão; o detalhe fica na pasta dele.
 - #007 <título> — `cartoes/007-titulo/`
 ```
 
-- **Backlog:** pode virar trabalho. **A fazer:** combinado, ainda não começou. **Fazendo:** o cartão aberto. **Feito:** executado e conferido. **Homologado:** o usuário validou no uso real.
+- Os cartões abertos são os de "Fazendo" (um, ou até o limite de "Cartões em paralelo"). Número novo vem de `bash .claude/bin/novo-id.sh`; quadro antigo com "Próximo ID" continua valendo como piso e a linha pode sair.
+- Com cartões em paralelo, o quadro muda só com Edit, trecho a trecho (o hook nega Write).
+- O quadro não repete o próximo passo do cartão: ele fica só em "Onde parou" do `cartao.md` (duas cópias se desencontram). Quadro antigo com "Cartão aberto" ou "Próximo passo" na "Situação": apague essas linhas na próxima edição do quadro.
+- **Backlog:** pode virar trabalho. **A fazer:** combinado e ainda não começou, ou pausado (`#NNN <título> — pausado em AAAA-MM-DD: <próximo passo> — cartoes/NNN-titulo/`). **Fazendo:** o cartão aberto. **Feito:** executado; conferido, ou com a conferência dispensada pelo usuário (registrado no cartão). **Homologado:** o usuário validou no uso real.
 - "Homologado" guarda os 3 grupos mais recentes; os anteriores vão para `operacao/docs/historico.md`, no mesmo formato.
 - Cartão cancelado sai do quadro: a pasta vai para `cartoes/_arquivo/` e o motivo fica no `cartao.md`.
+- Com cartões em paralelo: cartão esperando outro fica em "Fazendo" com ` — esperando #NNN`; cartão devolvido volta ao Backlog (`#NNN <título> — devolvido: depende de #MMM — cartoes/NNN-titulo/`) e mantém a pasta.
 
 ## operacao/docs/operacao.md
+
+"Configurações" guarda o que o usuário liga e desliga com `/operador-configurar`. "Cartões em paralelo" diz quantos cartões podem ficar abertos ao mesmo tempo, cada um numa sessão do Claude Code: `não` = um por vez (o padrão, também sem a linha), `sim` = sem limite, número = o limite. Operação antiga com a linha em "Limites" continua valendo; o `/operador-configurar` a move.
 
 ```markdown
 # Operação
@@ -71,6 +74,9 @@ Atualizado: AAAA-MM-DD
 ## Limites
 - Custo: <ex.: "só gratuito">
 - Acesso: <o que o Claude pode e não pode tocar>
+
+## Configurações
+- Cartões em paralelo: não
 
 ## Como o usuário gosta de trabalhar
 - <preferências que valem para todo cartão: tom, formato de relatório, horários, nível de detalhe>
@@ -133,7 +139,7 @@ Modelos: padrão | setup
 | Notion | (conector do app) | mcp__claude_ai_Notion__ | <lista das ferramentas que só leem> |
 ```
 
-- "Motores": a tabela de modelos só existe com `Modelos: setup`; com `padrão`, vale a tabela do `/operador-iniciar`.
+- "Motores": a tabela de modelos só existe com `Modelos: setup`; com `padrão`, vale a tabela de `.claude/skills/operador-iniciar/motores.md`.
 - "MCP por conta": o nome de uma ferramenta muda de uma conta para outra (conector do claude.ai vira `mcp__claude_ai_<Nome>__`). "Leitura na secundária" é o que o gerente pode liberar lá: só ferramentas que leem, confirmadas pelo usuário.
 
 ## operacao/docs/fluxos/NN-nome.md
@@ -206,9 +212,17 @@ Criado pelo gerente quando o cartão vai para "Fazendo". Só o gerente edita.
 ```markdown
 # #NNN — <título>
 
-Status: briefing | análise | plano | aprovado | execução | conferência | concluído | cancelado
+Status: briefing | análise | plano | aprovado | execução | aguardando-usuario | esperando #NNN | conferência | pausado | devolvido | concluído | cancelado
 Aberto: AAAA-MM-DD · Fechado: AAAA-MM-DD · Fluxo: <NN-nome ou "padrão">
 Motores: <conta dos subagentes; modelos padrão ou setup; MCPs que a secundária tem>
+Alvos: <o que este cartão altera, separado por vírgula: postgres, journald, quadro Aulas do Trello; * = o ambiente inteiro>
+
+## Onde parou
+- Atualizado: AAAA-MM-DD HH:MM
+- Último feito: <a última coisa concluída, com o número da ação>
+- Próximo passo: <o que fazer agora, concreto>
+- Esperando: ninguém | usuário: <o quê>
+- Atenção: <o que fica fora desta pasta e precisa estar vivo: login do navegador, conector, sessão SSH> (ou "nada")
 
 ## Briefing
 - O que: ...
@@ -221,10 +235,10 @@ Motores: <conta dos subagentes; modelos padrão ou setup; MCPs que a secundária
 
 ## Plano
 - [ ] 1. <ação> — altera: <o quê> — backup: <arquivo em backups/ ou "não se aplica: motivo"> — desfazer: <como>
-Aprovado pelo usuário em: AAAA-MM-DD
+Aprovado pelo usuário: AAAA-MM-DD (ações 1 a N) · AAAA-MM-DD (ação N+1, extensão 1)
 
 ## Execução
-- <o que foi feito, desvios e problemas, com trecho da saída que prova>
+- AAAA-MM-DD <passo ou ação>: <resultado em uma linha> — prova: <trecho curto da saída, ou o arquivo em entregas/ que a guarda>
 
 ## Alterações
 | # | O que mudou | Onde | Backup | Como desfazer |
@@ -243,4 +257,27 @@ Aprovado pelo usuário em: AAAA-MM-DD
 - <o que surgiu e não cabe aqui> (ou "nada")
 ```
 
-O `Status` diz onde retomar: um gerente novo lê o cartão aberto e continua do passo indicado.
+O `Status` diz em que passo o cartão está; "Onde parou" diz o que fazer agora. Um gerente novo, de qualquer conta, lê os dois e continua. `aguardando-usuario` vale enquanto o cartão espera uma resposta ou ação do usuário; com a resposta, volta ao status do passo. `pausado`: o cartão saiu de "Fazendo" por `/operador-pausar`; "Onde parou" diz o status ao retomar.
+
+- "Execução" é lida a cada retomada: uma linha por passo ou ação. Saída longa, log e relatório vão para `entregas/` e a linha aponta para o arquivo.
+- "Briefing" e "Análise" guardam o combinado **atual**: quando muda, reescreva (a versão anterior fica em `operacao/.versoes/`); rodadas de conversa, opções recusadas e tentativas não se acumulam ali. O que precisar ficar vai para `entregas/`.
+- Ciclo curto usa o mesmo modelo só com `Status`, "Onde parou", "Briefing", "Execução", "Alterações" e "Entregas".
+
+## operacao/parametros/parametro.json
+
+Se a operação precisar de um arquivo de parâmetros, ele se chama `parametro.json`, fica em `operacao/parametros/` e tem esta forma (quem preenche é o usuário; você não lê nem grava esse arquivo):
+
+```json
+{
+  "<NomeDaEmpresa>": {
+    "ApiKey": "",
+    "ApiSecret": ""
+  },
+  "Banco": {
+    "Senha": ""
+  }
+}
+```
+
+- Um objeto por empresa ou serviço externo, com o nome dela (ex.: `GatewayPagamento`, `ServicoEmail`). `ApiKey` e `ApiSecret` são os nomes padrão; outras propriedades do mesmo serviço entram no mesmo objeto (ex.: `Passphrase`).
+- `Banco` guarda a senha do banco; outras informações de conexão entram no mesmo objeto.

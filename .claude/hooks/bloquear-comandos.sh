@@ -1,26 +1,25 @@
 #!/usr/bin/env bash
-# Hook PreToolUse (Bash|PowerShell): nega comandos destrutivos óbvios antes de rodarem.
+# Hook PreToolUse (Bash|PowerShell): nega comandos destrutivos óbvios e escrita por shell no estado da
+# operação; pede confirmação para o que pode trancar ou derrubar um servidor.
 # Com jq, examina o comando. Sem jq, examina a entrada inteira do hook (menos preciso, mas
 # não fica desligado); o verificar-ambiente.sh avisa ao abrir a sessão.
 
 ENTRADA=$(cat)
 source "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 
-if command -v jq >/dev/null 2>&1; then
-  COMANDO=$(printf '%s' "$ENTRADA" | jq -r '.tool_input.command // empty')
-else
-  COMANDO=$ENTRADA
-fi
+ler_entrada "$ENTRADA"
 [ -n "$COMANDO" ] || exit 0
 
 # Shell POSIX (diferencia maiúsculas: nome de comando tem caixa fixa).
 POSIX=(
-  'rm\s+(-rf?|-fr?|--recursive)\s+["'"'"']?[~/$]'          # apagar a partir de /, ~ ou variável
-  'rm\s+(-rf?|-fr?|--recursive)\s+["'"'"']?[A-Za-z]:[\\/]' # apagar a partir de um drive (Git Bash)
+  '(^|[^[:alnum:]_-])rm\s+([^|;&]*\s)?(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)(\s[^|;&]*)?\s["'"'"']?([~/$*]|\.\.|[A-Za-z]:[\\/])'  # apagar recursivo a partir de /, ~, variável, *, .. ou drive
+  '--no-preserve-root'
+  'git\s+clean\s+[^|;&]*-[a-zA-Z]*[xX]'               # apaga o que o .gitignore esconde, como operacao/
+  '\bfind\s[^|;&]*operacao[^|;&]*\s-delete'
   'git\s+push\s+(--force|-f)\s+.*\s+(main|master)\b'
   '>\s*/dev/sd[a-z]'
   'chmod\s+-R\s+777'
-  '(curl|wget)\s+[^|]+\|\s*(sh|bash)'               # baixar e executar
+  '(curl|wget)\s+[^|]+\|\s*(sudo\s+)?(ba|z|da)?sh(\s|$|[;&|])'   # baixar e executar (| sha256sum passa)
   'mkfs\.'
   'dd\s+if=.*of=/dev/[sh]d'
   '(^|[^[:alnum:]_-])rm\s[^|;&]*operacao/'           # operacao/ não tem histórico: arquive, não apague
@@ -57,21 +56,101 @@ WINDOWS=(
   '\btakeown\b[^|]*\s/r\b'
   '\bicacls\b[^|]*/grant[^|]*everyone'
   '\bschtasks\b[^|]*/create'
+  '\b(register|new)-scheduledtask'
+  '\b(new|set)-itemproperty\b[^|]*\\currentversion\\run'
   '\bsc\s+(create|delete)\b'
   '\breg\s+delete\s+[^|]*hklm'
   '\breg\s+add\s+[^|]*\\run\b'
   '(\bremove-item\b|\bri\b|\bdel\b|\berase\b|\brd\b|\brmdir\b)[^|;]*operacao[\\/]'
 )
 
-MOTIVO=""
-for p in "${POSIX[@]}"; do
-  if printf '%s' "$COMANDO" | grep -qE -- "$p"; then MOTIVO="$p"; break; fi
-done
-if [ -z "$MOTIVO" ]; then
-  for p in "${WINDOWS[@]}"; do
-    if printf '%s' "$COMANDO" | grep -qiE -- "$p"; then MOTIVO="$p"; break; fi
-  done
-fi
-[ -n "$MOTIVO" ] || exit 0
+# Estado da operação: quadro, docs/ e cartao.md só mudam por Edit/Write, que guardam a versão anterior;
+# sed -i não toca nenhum .md de operacao/ (troca errada apaga texto sem cópia).
+# parametros/ é do usuário. Sem diferenciar maiúsculas.
+ALVO='["'"'"']?(\./)?operacao[\\/](quadro\.md|docs[\\/][^|;&[:space:]]*|cartoes[\\/][^\\/[:space:]]+[\\/]cartao\.md)'
+ESTADO=(
+  ">\s*$ALVO"
+  "\b(cp|mv|install|ln)\b[^|;&]*\s$ALVO[\"']?\s*(\$|[|;&])"
+  "\btee\b[^|;&]*\s$ALVO"
+  "\bsed\b[^|;&]*\s-i[^|;&]*\s[\"']?(\./)?operacao[\\/][^|;&[:space:]]*\.md"
+  "\b(set-content|add-content|out-file|clear-content|copy-item|move-item|new-item|rename-item)\b[^|;]*$ALVO"
+  'operacao[\\/]parametros'
+)
 
-negar_ferramenta "Comando destrutivo bloqueado pelo kit (padrão: $MOTIVO). Se for intencional, peça ao usuário que rode ele mesmo."
+# Pode trancar o acesso ao servidor ou derrubá-lo: o usuário confirma. Sem diferenciar maiúsculas.
+SEP='(^|[;&|"'"'"'[:space:]])(sudo\s+)?'
+FIM='(\s|$|["'"'"';&|])'
+PERGUNTAR=(
+  '\bufw\s+(--force\s+)?(enable|reset|default\s+deny)'
+  '\b(ip6?tables|iptables-legacy)\b[^|;&]*\s(-F|--flush|-X|-P\s+\S+\s+(DROP|REJECT))'
+  '\bnft\s+flush\b'
+  "${SEP}(reboot|poweroff|halt|shutdown)${FIM}"
+  '\bsystemctl\s+(reboot|poweroff|halt|kexec)\b'
+  '\bservice\s+sshd?\s+stop\b'
+  '\bpasswd\s+-l\b'
+  '\busermod\s+[^|;&]*-L\b'
+  '\buserdel\b'
+  'apt(-get)?\s+[^|;&]*(remove|purge)\b[^|;&]*openssh'
+)
+
+# Com cartões em paralelo: para ou reinicia algo que é alvo do cartão de outra sessão.
+COMPARTILHADO=(
+  '\bsystemctl\s+(restart|stop|reload|try-restart|kill|isolate)\b'
+  '\bservice\s+\S+\s+(restart|stop|reload)\b'
+  '\bdocker\s+(compose\s+)?(restart|stop|down|kill)\b'
+)
+
+# casa OPCOES PADRAO...: imprime o primeiro padrão que casa com o comando. Um grep para o grupo
+# inteiro; só procura qual foi quando algum casou (cada processo custa caro no Windows).
+casa() {
+  local opcoes=$1 junto="" p
+  shift
+  for p in "$@"; do junto="${junto:+$junto|}($p)"; done
+  printf '%s' "$COMANDO" | grep -q"$opcoes" -- "$junto" || return 1
+  for p in "$@"; do
+    if printf '%s' "$COMANDO" | grep -q"$opcoes" -- "$p"; then printf '%s' "$p"; return 0; fi
+  done
+}
+
+if MOTIVO=$(casa E "${POSIX[@]}") || MOTIVO=$(casa iE "${WINDOWS[@]}"); then
+  negar_ferramenta "Comando destrutivo bloqueado pelo kit (padrão: $MOTIVO). Se for intencional, peça ao usuário que rode ele mesmo."
+fi
+if MOTIVO=$(casa iE "${ESTADO[@]}"); then
+  negar_ferramenta "Quadro, docs/ e cartao.md só mudam pela ferramenta de edição (o kit guarda a versão anterior), e parametros/ é do usuário. Comando bloqueado (padrão: $MOTIVO)."
+fi
+
+# Cartões abertos que não são desta sessão, com os alvos. Só com cartões em paralelo.
+# Com "so_afetados", só os que têm um alvo citado no comando (ou "*").
+outros_cartoes() {
+  local pasta alvos dono _ x lista
+  [ "$(limite_paralelo)" -gt 1 ] || return 0
+  while IFS='|' read -r pasta alvos dono _; do
+    [ -n "$pasta" ] || continue
+    [ -n "$SESSAO" ] && [ "$dono" = "$SESSAO" ] && continue
+    if [ "${1:-}" = so_afetados ]; then
+      IFS=, read -ra lista <<< "$alvos"
+      for x in "${lista[@]}"; do
+        alvo_normal "$x"
+        if [ "$ALVO_N" = "*" ] || { [ ${#ALVO_N} -ge 3 ] && [[ ${COMANDO,,} == *"$ALVO_N"* ]]; }; then
+          printf ' %s (alvos: %s);' "$pasta" "$alvos"; break
+        fi
+      done
+    else
+      printf ' %s (alvos: %s);' "$pasta" "${alvos:-não declarados}"
+    fi
+  done < <(cartoes_abertos)
+}
+esperar_outros() {
+  negar_ferramenta "Há cartão aberto em outra sessão que este comando afeta:$1 Não pergunte ao usuário: siga \"Conflito com outro cartão\" do /operador-iniciar (Status: esperando #NNN e bash .claude/bin/esperar-cartao.sh NNN em segundo plano; quando ele liberar, rode de novo)."
+}
+
+if MOTIVO=$(casa iE "${PERGUNTAR[@]}"); then
+  OUTROS=$(outros_cartoes)
+  [ -z "$OUTROS" ] || esperar_outros "$OUTROS"
+  perguntar_ferramenta "Este comando pode trancar o acesso ao servidor ou derrubá-lo (padrão: $MOTIVO). Confirme só se estiver no plano aprovado."
+fi
+if [[ ${COMANDO,,} =~ (systemctl|service|docker) ]] && MOTIVO=$(casa iE "${COMPARTILHADO[@]}"); then
+  OUTROS=$(outros_cartoes so_afetados)
+  [ -z "$OUTROS" ] || esperar_outros "$OUTROS"
+fi
+exit 0

@@ -55,11 +55,11 @@ Um cartão é **uma tarefa inteira**, com começo, meio e fim. "Instalar o AdGua
 
 | Lista | O que tem |
 |---|---|
-| Situação | cartão aberto, próximo passo, decisões pendentes, próximo ID |
+| Situação | decisões pendentes (o próximo passo fica só no cartão) |
 | Backlog | pedidos e ideias |
-| A fazer | combinado, ainda não começou |
-| Fazendo | o cartão aberto (um por vez) |
-| Feito | executado e conferido |
+| A fazer | combinado e ainda não começou, ou pausado |
+| Fazendo | os cartões abertos (um por vez, ou em paralelo se a operação ligar) |
+| Feito | executado; conferido ou com a conferência dispensada por você |
 | Homologado | você validou no uso real |
 
 ---
@@ -69,11 +69,14 @@ Um cartão é **uma tarefa inteira**, com começo, meio e fim. "Instalar o AdGua
 | Comando | Para quê |
 |---|---|
 | `/operador-iniciar` | Entrada única. Na primeira vez, entrevista você e monta a operação. Depois, retoma o cartão aberto ou abre um novo. |
-| `/operador-encerrar` | Fecha o cartão: atualiza `ambiente.md`, registra lições e move para "Feito". Com `cancelar`, arquiva sem concluir. |
+| `/operador-encerrar` | Fecha o cartão: atualiza `ambiente.md`, registra lições e move para "Feito". |
+| `/operador-pausar` | Tira o cartão aberto de "Fazendo" sem fechar: volta para "A fazer" com "Onde parou" gravado. |
+| `/operador-cancelar` | Desiste do cartão aberto: pergunta o que desfazer e arquiva a pasta (nada é apagado). |
+| `/operador-configurar` | Mostra e muda as configurações da operação, como ligar ou desligar os cartões em paralelo. Vale para toda sessão. |
+| `/operador-homologar` | Leva cartões de "Feito" para "Homologado". |
 | `/operador-ciclo-curto` | Trabalho pequeno, sem análise nem decisão, numa sessão só. |
 | `/operador-consultar` | Pergunta sobre a operação ou o ambiente, numa sessão à parte. Só lê. |
 | `/operador-fluxo` | Cria ou ajusta um fluxo (receita de trabalho). |
-| `/operador-homologar` | Leva cartões de "Feito" para "Homologado". |
 
 ### O ciclo de um cartão
 
@@ -87,7 +90,7 @@ Um cartão é **uma tarefa inteira**, com começo, meio e fim. "Instalar o AdGua
 /operador-encerrar ....... ambiente.md, lições, quadro; fecha a sessão
 ```
 
-Um gerente por cartão: para o próximo trabalho, abra uma sessão nova e rode `/operador-iniciar` de novo. Se o contexto ficar pesado no meio, feche e abra outra sessão: ela continua pelo `Status` do `cartao.md`.
+Um gerente por cartão: para o próximo trabalho, abra uma sessão nova e rode `/operador-iniciar` de novo. Se o contexto ficar pesado no meio, feche e abra outra sessão: ela continua pelo "Onde parou" do `cartao.md`. Para trocar de trabalho sem terminar o cartão, `/operador-pausar`.
 
 Exemplo de pedido rápido: "qual a versão do kernel do servidor?" não abre cartão. O próprio `/operador-iniciar` responde como consulta, ou você usa `/operador-consultar`.
 
@@ -134,20 +137,24 @@ A skill `operador-midia` (não é comando: o gerente a carrega sozinho quando o 
 ## Segurança
 
 - **Nada muda fora da pasta sem o seu ok.** Toda alteração segue a mesma ordem: está no plano aprovado, tem backup em `backups/`, é executada e fica registrada no cartão com o jeito de desfazer. Publicar, enviar mensagem, apagar dados e gastar dinheiro pedem um ok específico, mesmo com o plano aprovado.
-- **Segredos ficam com você**: em `operacao/parametros/`, no `~/.ssh/config`, no conector MCP. O Claude usa acesso só por referência (alias do SSH, conector autenticado) e nunca lê, pede ou imprime o valor.- **Dados de pessoas** (alunos, clientes) não saem para serviços externos sem você pedir.
-- **Sem git nas operações**: nada em `operacao/` tem histórico. Por isso as travas negam apagar arquivos ali (o cancelamento arquiva). Faça backup dessa pasta por conta própria.
+- **Segredos ficam com você**: em `operacao/parametros/`, no `~/.ssh/config`, no conector MCP. O Claude usa acesso só por referência (alias do SSH, conector autenticado) e nunca lê, pede ou imprime o valor.
+- **Dados de pessoas** (alunos, clientes) não saem para serviços externos sem você pedir.
+- **Sem git nas operações**: antes de cada edição de um `.md` em `operacao/`, o kit guarda a versão anterior em `operacao/.versoes/`. Apagar não tem volta: as travas negam apagar arquivos ali (o cancelamento arquiva). Faça backup dessa pasta por conta própria.
 
 ### Travas
 
 | Trava | O que faz |
 |---|---|
-| `hooks/proteger-estrutura.sh` | Nada solto no Root; `parametros/` negado; subagente só grava em `entregas/` e `backups/` do cartão. |
-| `hooks/bloquear-comandos.sh` | Comandos destrutivos (inclusive dentro de `ssh "..."`), apagar em `operacao/`, parar o SSH do servidor. |
+| `hooks/proteger-estrutura.sh` | Nada solto no Root; `parametros/` negado; subagente só grava em `entregas/` e `backups/` do cartão (caminho com `..` resolvido antes). Fora da operação, só o executor grava, e nunca na configuração do Claude, em `~/.ssh` ou em outra operação. |
+| `hooks/bloquear-comandos.sh` | Nega comandos destrutivos (inclusive dentro de `ssh "..."`), apagar em `operacao/`, escrever no quadro, em `docs/` ou em `cartao.md` por shell, tocar em `parametros/` e agendar tarefa no Windows. Pede confirmação para o que pode trancar ou derrubar um servidor (`ufw`, `iptables`, `reboot`, `shutdown`, remover o `openssh`) ; com cartão de outra sessão aberto, nega o reboot/firewall e o restart de um alvo dela (`systemctl restart`, `docker stop`) mandando esperar; na conta secundária, nega o que pediria confirmação. |
+| `hooks/proteger-mcp.sh` | Ferramenta de MCP que escreve (enviar, publicar, criar, mover, apagar): você confirma cada chamada do gerente e do executor; os outros papéis e a conta secundária não usam. |
+| `hooks/versionar.sh` | Guarda a versão anterior de cada `.md` de `operacao/` em `operacao/.versoes/` antes da edição. |
+| `hooks/proteger-estrutura.sh` (cartões) | Nega cartão novo (ou pausado voltando) além do limite de "Cartões em paralelo"; com o limite acima de 1, nega editar o cartão que outra sessão editou há menos de 30 minutos e Write em quadro, `ambiente.md` e `historico.md`, e nega, sem perguntar, dois cartões abertos com alvo em comum (o gerente espera ou devolve o seu). |
 | `hooks/bloquear-segredos.sh` | Nega edição que escreve chave, token ou senha literal. |
 | `hooks/verificar-ambiente.sh` | Ao abrir a sessão: estrutura, `jq`, ferramenta pendente, `.git` copiado por engano. |
-| `settings.json` | Nega ler `parametros/` e `.env`; `ssh`, `scp` e `rsync` pedem confirmação. |
+| `settings.json` | Nega ler `parametros/` e `.env`; `ssh`, `scp` e `rsync` pedem confirmação; editar hooks, scripts, agentes e as permissões da operação também. |
 
-Limites conhecidos: as travas pegam o óbvio, não tudo. O "só leitura" do analista e do conferente no ambiente remoto é por instrução, não por trava.
+Limites conhecidos: as travas pegam o óbvio, não tudo. O "só leitura" do analista e do conferente no ambiente remoto é por instrução, não por trava. Escrita por shell que não cita o caminho (`cd operacao && ...`) não é pega. O hook de MCP reconhece a ação pelo nome da ferramenta (`send`, `create`, `delete`...): nome fora do padrão passa.
 
 ---
 
@@ -159,23 +166,48 @@ Limites conhecidos: as travas pegam o óbvio, não tudo. O "só leitura" do anal
 
 ## Instalação
 
-O kit é uma **pasta modelo**. Para cada operação:
+O kit é uma **pasta modelo**. No Windows, dê dois cliques em `instalar.cmd` (abre o `instalar.sh` no Git Bash). Em qualquer sistema: `bash instalar.sh`.
 
-1. Crie a pasta da operação (ex.: `servidor-linux/`).
-2. Copie para dentro dela o `CLAUDE.md` e a pasta `.claude/` deste repositório. Não copie o `README.md`, o `.git` nem o `.gitignore`.
-3. Abra uma sessão Code nessa pasta e rode `/operador-iniciar`. Na primeira vez ele pergunta o que é a operação, como se acessa o ambiente, que ferramentas você usa e o que nunca fazer. Depois sugere um primeiro cartão de levantamento do ambiente.
+O instalador pergunta a pasta onde fica (ou vai ficar) a operação e o nome dela, e segue pelo que encontrar:
 
-Dica: mantenha ao lado do clone uma pasta `operador-usar/` só com `CLAUDE.md` e `.claude/`, pronta para copiar. Para refazê-la depois de atualizar o kit, rode de dentro do clone:
+| A pasta | O que ele faz |
+|---|---|
+| Não existe ou está vazia | Mostra que é uma operação nova, pede confirmação e copia `CLAUDE.md` e `.claude/`. |
+| Já tem o kit | Mostra o que muda, pede confirmação e atualiza (veja "Atualizar o kit numa operação"). |
+| Tem outra coisa | Para sem mexer. |
 
-```bash
-bash .claude/bin/testar-hooks.sh && rm -rf ../operador-usar && mkdir ../operador-usar && cp -r CLAUDE.md .claude ../operador-usar/ && rm -f ../operador-usar/.claude/settings.local.json
-```
+Depois de criar, abra o Claude Code (aba Code) na pasta e rode `/operador-iniciar`. Na primeira vez ele pergunta o que é a operação, como se acessa o ambiente, que ferramentas você usa e o que nunca fazer, e sugere um primeiro cartão de levantamento do ambiente.
 
-O `settings.local.json` é removido porque guarda permissões dadas em sessões locais, que não devem ir para as operações.
+Sem perguntas: `bash instalar.sh <pasta>` aplica direto; `bash instalar.sh <pasta> --ver` só mostra o que mudaria. O instalador nunca copia o `README.md`, o `.git` nem o `settings.local.json` do clone.
+
+Se o `instalar.cmd` disser que não achou o Git: instale o Git for Windows (https://git-scm.com/download/win), que traz o Git Bash, e rode de novo. O `.cmd` procura o Git Bash pelo próprio `git` (`git --exec-path`), porque o `bash` que o Windows acha primeiro pode ser o do WSL.
 
 ## Ferramentas
 
 O gerente descobre, durante a análise, se falta alguma ferramenta (MCP do Trello, acesso SSH, API de imagem). Ele pesquisa e propõe; **você liga**: faz o login do conector, coloca a chave no lugar dela e aprova a mudança em `.mcp.json`. A ferramenta fica registrada em `operacao/docs/ferramentas.md` com o status, e o kit avisa ao abrir a sessão enquanto ela estiver pendente.
+
+## Cartões em paralelo (opcional)
+
+Por padrão a operação tem **um cartão aberto por vez**: enquanto houver um em "Fazendo", nenhuma sessão abre outro. Para tocar duas ou mais tarefas ao mesmo tempo (no servidor: o banco de dados numa sessão, o log de desligamento em outra), rode `/operador-configurar` e ligue o paralelo. Ele grava em `operacao/docs/operacao.md`, na seção "Configurações":
+
+```
+- Cartões em paralelo: sim
+```
+
+`sim` = sem limite; um número = esse limite; `não` (ou sem a linha) = um por vez. A linha é da operação: vale para toda sessão e toda conta, e a atualização do kit não a toca.
+
+Como funciona, com o limite acima de 1:
+
+- **Uma sessão do Claude Code por cartão.** Abra outra janela ou aba na mesma pasta e rode `/operador-iniciar`. Um gerente não toca dois cartões: o contexto de um vazaria para o outro.
+- **Limite:** o hook nega o cartão novo (ou o pausado que volta ao trabalho) que passa do limite, mesmo com duas sessões abrindo no mesmo instante.
+- **Números:** `bash .claude/bin/novo-id.sh` reserva o próximo `#NNN` (uma pasta em `operacao/.ids/`); duas sessões nunca recebem o mesmo.
+- **Dono:** o cartão é da sessão que o editou por último (`.dono` na pasta do cartão, com a hora). Outra sessão é negada nele enquanto a dona o editou há menos de 30 minutos; depois disso, quem editar assume (a sessão fechada sem pausar não prende o cartão). Para liberar antes, com o seu ok: `bash .claude/bin/liberar-cartao.sh NNN`. O `/operador-pausar` libera sozinho.
+- **Alvos:** cada cartão diz em `Alvos:` o que altera (`postgres`, `journald`, `*` para o ambiente inteiro). Alvo em comum com outro cartão aberto (igual, um começando pelo outro, como `postgres` e `postgresql` ou `/etc` e `/etc/fstab`, ou `*`): o hook nega e o gerente resolve **sem te perguntar**.
+- **Conflito se resolve sozinho:** quando um cartão depende de outro aberto ou atrapalha o trabalho dele, o gerente **espera** (`Status: esperando #NNN`; `esperar-cartao.sh` acorda a sessão quando o outro fecha, pausa ou é devolvido, até 120 min) ou, se o seu cartão ainda não alterou nada, **devolve** o seu ao Backlog sem registro (`Status: devolvido`, a pasta fica). Espera quando o outro está perto do fim (aprovado, execução, conferência) ou quando o seu já alterou algo; devolve quando o outro ainda está no briefing, análise, plano ou esperando você. Cartão esperando ou devolvido não trava alvo, então dois nunca esperam um pelo outro.
+- **Ações que afetam tudo** (reboot, firewall, acesso) com outro cartão aberto: o hook nega e o gerente espera. Parar ou reiniciar serviço (`systemctl restart`, `service ... stop`, `docker stop`) só é negado quando o comando cita um alvo de outro cartão aberto; o resto passa.
+- **Quadro, `ambiente.md` e `historico.md`:** só mudam com Edit, trecho a trecho (o hook nega Write, que regravaria o arquivo inteiro a partir da cópia lida pela sessão). O Edit troca só o trecho dele e recusa quando o arquivo mudou depois da leitura; a sessão relê e refaz. Antes de cada gravação, a versão anterior vai para `operacao/.versoes/`.
+
+Não cobre: dois cartões que mexem em coisas que se afetam sem nome parecido em `Alvos:` (o hook compara palavras; a dependência fica a cargo do gerente, no briefing e no fim da análise); restart de um alvo de outro cartão escrito com outro nome (`postgresql@16-main` passa por `postgres`, `pg` não); cartão esperando não é protegido pelo hook contra outra sessão que o retome; uma sessão viva parada há mais de 30 minutos sem editar o cartão perde a vez para quem editar; conta secundária e subagentes continuam valendo para o cartão da sessão que os disparou.
 
 ## Conta secundária (opcional)
 
@@ -216,20 +248,37 @@ Na secundária, o papel roda com as travas da operação e só grava em `entrega
 
 ## Atualizar o kit numa operação
 
-Copie a versão nova de `CLAUDE.md` e das pastas `.claude/skills/`, `.claude/agents/`, `.claude/hooks/`, `.claude/bin/` e `.claude/modelos/`. Mantenha `.claude/rules/`, `.claude/settings.json`, `.mcp.json` e `operacao/`, que são da operação.
+Feche as sessões do Claude Code da operação e rode o instalador apontando para a pasta dela. Ele compara cada arquivo do kit na operação com **todas as versões do kit no histórico git** do clone e decide:
+
+| O arquivo na operação | O que acontece |
+|---|---|
+| É uma versão do kit (atual ou antiga) | Troca pela versão nova. |
+| `settings.json` com conteúdo próprio | **Mescla:** o `settings.json` novo do kit mais as permissões (`allow`, `ask`, `deny`), os hooks e as chaves que a operação acrescentou, sem duplicar. |
+| `padroes-segredos.txt` com linhas próprias | Mescla: o arquivo novo mais as linhas da operação, num bloco "# Da operação". |
+| Outro `.md` do kit editado na operação | Troca pela versão nova; o texto que a operação acrescentou vai para `.claude/rules/kit-migrado.md` (carregado em toda sessão) para você revisar. |
+| Outro arquivo do kit editado (script) | Troca pela versão nova; a diferença fica em `REVISAR.md` na cópia. |
+| Arquivo que o kit não tem mais | Sai (fica na cópia). |
+| Arquivo próprio (rules, skill ou agente com outro nome, hook seu) | Fica como está. |
+
+- **Nada se perde:** tudo o que muda ou sai é copiado antes para `operacao/.versoes/kit-<data>/`. Se houver edição local, `REVISAR.md` nessa pasta mostra a diferença para a versão do kit mais parecida.
+- **Rodar de novo não muda nada.** A versão instalada fica em `.claude/VERSAO`.
+- Não toca em `.claude/rules/` (só tira um arquivo do kit que saiu e não foi editado), `settings.local.json`, `.mcp.json` nem `operacao/` (só cria `.versoes/kit-<data>/`).
+- Lista os itens "Levar ao kit:" do quadro da operação, para virarem melhoria aqui.
+- No fim, roda os autotestes do kit na operação.
+- Precisa do `git` (o reconhecimento das versões usa o histórico do clone; sem o `.git`, só a versão atual é reconhecida e o resto vai para revisão) e do `jq` quando o `settings.json` tem conteúdo próprio.
 
 ## Personalização
 
-- **`.claude/settings.json`**: permissões. Uma operação de servidor pode liberar `ssh` sem confirmação.
+- **Permissões e hooks da operação**: no `.claude/settings.json` (a atualização mescla e preserva) ou no `.claude/settings.local.json` (nunca é tocado). Os dois somam às regras do kit, inclusive na conta secundária. Uma operação de servidor pode liberar `ssh` sem confirmação: `{"permissions": {"allow": ["Bash(ssh casa *)"]}}`.
 - **`.claude/rules/`**: regras da operação (o `operacao.md` é criado pelo `/operador-iniciar`).
-- **`.claude/modelos/documentos.md`**: os modelos do quadro, do cartão e dos documentos.
-- **`.claude/hooks/padroes-segredos.txt`**: as expressões regulares de segredo.
+- Modelos, skills e agentes do kit: prefira mudar no clone do kit (chega a todas as operações) e, na operação, anotar "Levar ao kit: <o quê>" no Backlog. Se editar na própria operação, a atualização não perde o texto: ele vai para `.claude/rules/kit-migrado.md` e para a cópia.
 - **Nomes**: skills do kit usam `operador-<comando>`; subagentes, `operador-sub-<papel>`. Isso evita conflito com skills de outros projetos.
 
 ## Testes do kit
 
 ```bash
-bash .claude/bin/testar-hooks.sh
+bash .claude/bin/testar-hooks.sh   # as travas (roda também dentro de uma operação)
+bash testar-instalar.sh            # o instalador (só no clone do kit)
 ```
 
-Testa as travas numa pasta temporária, sem tocar no kit nem numa operação real.
+Rodam numa pasta temporária, sem tocar no kit nem numa operação real.

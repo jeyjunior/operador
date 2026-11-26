@@ -24,13 +24,17 @@ status() {
   [ "$(limpo claude auth status 2>/dev/null | jq -r '.loggedIn // false')" = true ] && echo ok || echo sem-login
 }
 
-# Regras do projeto sem "ask" (o modo -p não pergunta: "ask" vira negação), somadas aos hooks globais da principal.
+# Regras do kit e da operação (settings.local.json) sem "ask" (o modo -p não pergunta: "ask" vira negação),
+# somadas aos hooks da operação (settings.local.json) e aos hooks globais da principal.
 regras() {
-  local globais='{}'
+  local globais='{}' local_op='{}'
   [ -f "$PRINCIPAL/settings.json" ] && globais=$(jq '.hooks // {}' "$PRINCIPAL/settings.json")
-  jq -c --argjson g "$globais" '
+  [ -f "$RAIZ/.claude/settings.local.json" ] && local_op=$(jq '{permissions: (.permissions // {}), hooks: (.hooks // {})}' "$RAIZ/.claude/settings.local.json")
+  jq -c --argjson g "$globais" --argjson l "$local_op" '
     del(.permissions.ask)
-    | .hooks = reduce ($g | keys[]) as $k ((.hooks // {}); .[$k] = ((.[$k] // []) + $g[$k]))
+    | .permissions.deny = ((.permissions.deny // []) + ($l.permissions.deny // []))
+    | .permissions.allow = ((.permissions.allow // []) + ($l.permissions.allow // []))
+    | .hooks = reduce (($l.hooks // {}), $g) as $h ((.hooks // {}); reduce ($h | keys[]) as $k (.; .[$k] = ((.[$k] // []) + $h[$k])))
   ' "$RAIZ/.claude/settings.json"
 }
 
@@ -68,7 +72,7 @@ rodar() {
   [ -f .mcp.json ] && mcp=(--mcp-config .mcp.json)
   limpo OPERADOR_PAPEL=sub claude -p --setting-sources user --settings "$(regras)" "${mcp[@]}" "${motor[@]}" \
     --append-system-prompt "$(instrucoes "$papel")" \
-    --allowedTools Read Glob Grep Write Edit WebSearch WebFetch "$@"
+    --allowedTools Read Glob Grep WebSearch WebFetch "Edit(/operacao/cartoes/**)" "$@"
 }
 
 mcp() {
